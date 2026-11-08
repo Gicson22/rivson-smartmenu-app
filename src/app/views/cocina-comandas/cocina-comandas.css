@@ -1,0 +1,307 @@
+.cocina-container {
+  max-width: 520px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #0f172a;
+  color: white;
+  min-height: 100vh;
+  padding-bottom: 30px;
+}
+
+.header-fijo-cocina {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: #0f172a;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.header-cocina {
+  background-color: #1e293b;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #334155;
+}
+
+.header-cocina h1 {
+  font-size: 0.9rem;
+  margin: 0;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.badge-estado-vivo {
+  font-size: 0.7rem;
+  background: #064e3b;
+  color: #34d399;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  border: 1px solid #10b981;
+}
+
+.panel-cocineros {
+  background: #1e293b;
+  padding: 10px 12px;
+  border-bottom: 2px solid #475569;
+}
+
+.panel-cocineros h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.82rem;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.grid-cocineros {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.card-cocinero {
+  background: #0f172a;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.card-cocinero.libre { border-color: #059669; }
+.card-cocinero.ocupado { border-color: #d97706; }
+
+.cocinero-titulo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cocinero-info strong {
+  font-size: 0.7rem;
+  color: #f8fafc;
+}
+
+.btn-ojito {
+  background: #334155;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 2px 5px;
+  font-size: 0.7rem;
+  transition: background 0.2s;
+}
+.btn-ojito:hover {
+  background: #475569;
+}
+
+.badge-estado-cocinero {
+  font-size: 0.62rem;
+  font-weight: bold;
+  color: #38bdf8;
+  display: block;
+  margin-top: 2px;
+}
+
+.historial-dia {
+  font-size: 0.58rem;
+  color: #94a3b8;
+  display: block;
+  border-top: 1px dashed #334155;
+  padding-top: 2px;
+  margin-top: 2px;
+}
+
+.historial-dia strong {
+  display: inline;
+  color: #34d399;
+}
+
+/* BARRA HORIZONTAL DE PESTAÑAS (TABS) */
+.tabs-horizontal {
+  display: flex;
+  background: #0f172a;
+  padding: 8px 12px;
+  gap: 6px;
+  border-bottom: 2px solid #334155;
+  overflow-x: auto;
+}
+
+.tab-btn {
+  flex: 1;
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: #3b82f6;
+  color: white;
+  border-color: #60a5fa;
+}
+
+.badge-count {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+}
+
+.contenido-cocina {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.seccion-cola {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista-comandas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-comanda {
+  background: #1e293b;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-comanda.solicitado { border-color: #3b82f6; }
+.card-comanda.preparando { border-color: #f59e0b; }
+.card-comanda.listo { border-color: #10b981; }
+
+.comanda-header {
+  background: #0f172a;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  border-bottom: 1px solid #334155;
+}
+
+.mesa-tag { font-weight: 800; color: #38bdf8; }
+.hora-tag { color: #94a3b8; font-size: 0.7rem; }
+
+.estado-badge {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+.estado-badge.solicitado { background: #1e3a8a; color: #93c5fd; }
+.estado-badge.preparando { background: #78350f; color: #fbbf24; }
+.estado-badge.listo { background: #064e3b; color: #34d399; }
+
+.comanda-body {
+  padding: 12px;
+  font-size: 0.82rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.titulo-platos { margin: 0; color: #94a3b8; font-size: 0.75rem; }
+
+.items-lista {
+  margin: 0;
+  padding-left: 14px;
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.asignado-txt {
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #fbbf24;
+  background: #111827;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.comanda-footer {
+  background: #0f172a;
+  padding: 10px 12px;
+  border-top: 1px solid #334155;
+}
+
+.small-label {
+  margin: 0 0 4px 0;
+  font-size: 0.68rem;
+  color: #94a3b8;
+}
+
+.botones-cocineros {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-tomar {
+  flex: 1;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 6px 4px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn-tomar:hover {
+  background: #2563eb;
+}
+
+.btn-listo {
+  width: 100%;
+  background: #10b981;
+  color: #064e3b;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.listo-mensaje {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #34d399;
+  font-weight: bold;
+}
+
+.sin-pedidos {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  padding: 25px;
+  background: #1e293b;
+  border-radius: 10px;
+  border: 1px solid #334155;
+}

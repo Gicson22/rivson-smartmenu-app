@@ -1,0 +1,402 @@
+<div class="gerencia-container">
+  
+  <!-- 1. HEADER PRINCIPAL -->
+  <header class="saas-header">
+    <div class="header-fila-superior">
+      <img *ngIf="logoUrlActivo; else iconoDefault" [src]="logoUrlActivo" class="logo-local" alt="Logo" />
+      <ng-template #iconoDefault>
+        <div class="logo-placeholder">🍲</div>
+      </ng-template>
+      <h1 class="titulo-local">👑 {{ nombreLocalActivo }}</h1>
+    </div>
+    
+    <div class="header-fila-inferior">
+      <p class="subtitulo-admin">Bienvenido(a): <span class="nombre-dueña-badge">{{ nombreDueniaActiva }}</span></p>
+      <button class="btn-salir-fuera" (click)="cerrarSesion()">
+        🚪 Salir
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. NAVBAR DE PESTAÑAS -->
+  <nav class="gerencia-navbar-tabs">
+    <button [class.active]="tabActiva === 'personal'" (click)="tabActiva = 'personal'">
+      👥 Personal
+    </button>
+    <button [class.active]="tabActiva === 'carta'" (click)="tabActiva = 'carta'; cargarProductosLocal()">
+      🍲 Carta
+    </button>
+    <button [class.active]="tabActiva === 'config'" (click)="tabActiva = 'config'">
+      🎨 Mi Logo
+    </button>
+  </nav>
+
+  <main class="contenido-gerencia">
+    
+    <!-- ================= PESTAÑA 1: GESTIÓN DE PERSONAL ================= -->
+    <div *ngIf="tabActiva === 'personal'" class="tab-contenido">
+      <section class="card-seccion">
+        <h2>👤 Registrar Nuevo Trabajador</h2>
+        <div class="form-grid">
+          
+          <div class="campo">
+            <label>Nombres y Apellidos:</label>
+            <div class="input-clear-wrapper">
+              <input 
+                #inputNombre
+                type="text" 
+                [(ngModel)]="nuevoNombre" 
+                placeholder="Ej: Mateo Flores" 
+                class="input-control input-con-clear" 
+                autocomplete="off" />
+              <button 
+                type="button" 
+                class="btn-clear" 
+                *ngIf="nuevoNombre && nuevoNombre.length > 0" 
+                (click)="limpiarCampoNombre(inputNombre)"
+                title="Limpiar">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>DNI (8 dígitos):</label>
+            <div class="input-clear-wrapper">
+              <input 
+                #inputDniReg
+                type="text" 
+                [(ngModel)]="nuevoDni" 
+                maxlength="8" 
+                placeholder="Ej: 74859612" 
+                class="input-control input-con-clear" 
+                autocomplete="off" />
+              <button 
+                type="button" 
+                class="btn-clear" 
+                *ngIf="nuevoDni && nuevoDni.length > 0" 
+                (click)="limpiarCampoDni(inputDniReg)"
+                title="Limpiar">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>PIN de Acceso (4 dígitos):</label>
+            <div class="input-clear-wrapper">
+              <input 
+                #inputPinReg
+                [type]="verPasswordNuevo ? 'text' : 'password'" 
+                [(ngModel)]="nuevoPin" 
+                maxlength="4" 
+                placeholder="****" 
+                class="input-control input-con-doble-icono" 
+                autocomplete="new-password" />
+              
+              <button 
+                type="button" 
+                class="btn-clear-pin" 
+                *ngIf="nuevoPin && nuevoPin.length > 0" 
+                (click)="limpiarCampoPin(inputPinReg)"
+                title="Limpiar">
+                ✕
+              </button>
+
+              <button type="button" class="btn-toggle-eye" (click)="toggleVerPasswordNuevo()">
+                {{ verPasswordNuevo ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="campo">
+            <label>Rol Asignado:</label>
+            <select [(ngModel)]="nuevoRol" class="input-control">
+              <option value="cocina">👨‍🍳 Cocina (KDS)</option>
+              <option value="mozo">🛎️ Mozo (Salón)</option>
+              <option value="guardia">🚪 Guardia (Puerta)</option>
+              <option value="caja">💰 Caja / Pagos</option>
+              <option value="dueña">👑 Dueña (Administrador)</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn-guardar" [disabled]="cargandoRegistro" (click)="registrarTrabajador()">
+          {{ cargandoRegistro ? '⏳ Registrando perfil...' : '✨ Registrar Perfil' }}
+        </button>
+      </section>
+
+      <section class="card-seccion">
+        <div class="tabla-header">
+          <h2>📋 Nómina de Personal</h2>
+          <span class="total-badge">Total: {{ usuarios.length }}</span>
+        </div>
+        
+        <div class="tabla-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nombre Completo</th>
+                <th>DNI</th>
+                <th>Rol</th>
+                <th>PIN</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let u of usuarios" [class.fila-inactiva]="!u.activo">
+                <td><strong>{{ u.nombre }}</strong></td>
+                <td>{{ u.dni }}</td>
+                <td>
+                  <span class="badge-rol" [ngClass]="u.rol">
+                    {{ u.rol | uppercase }}
+                  </span>
+                </td>
+                <td><code>{{ u.pin }}</code></td>
+                <td>
+                  <span class="badge-estado" [class.activo]="u.activo" [class.inactivo]="!u.activo">
+                    {{ u.activo ? '🟢 Activo' : '🔴 Baja' }}
+                  </span>
+                </td>
+                <td>
+                  <button 
+                    class="btn-toggle" 
+                    [class.desactivar]="u.activo" 
+                    [class.activar]="!u.activo"
+                    (click)="cambiarEstadoActivo(u)">
+                    {{ u.activo ? '🚫 Baja' : '✅ Activar' }}
+                  </button>
+                </td>
+              </tr>
+              <tr *ngIf="usuarios.length === 0">
+                <td colspan="6" class="sin-datos">No hay trabajadores registrados en este local.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PESTAÑA 2: GESTIÓN DE CARTA Y PRECIOS ================= -->
+    <div *ngIf="tabActiva === 'carta'" class="tab-contenido">
+      
+      <!-- FORMULARIO DE REGISTRO / EDICIÓN -->
+      <section class="card-seccion">
+        <h2 class="titulo-seccion-carta">🍲 {{ editandoProductoId ? '✏️ Editar Plato' : 'Registrar Plato o Bebida' }}</h2>
+        <div class="form-grid">
+          
+          <div class="campo">
+            <label>Nombre del Plato / Bebida:</label>
+            <input type="text" [(ngModel)]="prodNombre" placeholder="Ej: Ceviche de Mero" class="input-control" autocomplete="off" />
+          </div>
+
+          <div class="campo">
+            <label>Categoría:</label>
+            <select [(ngModel)]="prodCategoria" class="input-control">
+              <option value="ceviches">🐟 Ceviches</option>
+              <option value="sudados">🍲 Sudados & Parihuelas</option>
+              <option value="secos">🥩 Secos & Criollos</option>
+              <option value="jaleas">🍤 Jaleas & Frituras</option>
+              <option value="bebidas">🥤 Bebidas & Porciones</option>
+            </select>
+          </div>
+
+          <!-- Checkbox ordenado en 1 sola fila horizontal -->
+          <div class="campo-checkbox-row">
+            <label for="chkPorciones" class="lbl-chk-txt">¿Tiene tamaños múltiples (Personal / Mediano / Familiar)?</label>
+            <input type="checkbox" id="chkPorciones" [(ngModel)]="prodTienePorciones" class="chk-custom" />
+          </div>
+
+          <!-- Si NO tiene porciones (Precio Único: Ej. Bebidas) -->
+          <div class="campo" *ngIf="!prodTienePorciones">
+            <label>Precio Único (S/):</label>
+            <input type="number" step="0.50" [(ngModel)]="prodPrecio" placeholder="Ej: 8.00" class="input-control" autocomplete="off" />
+          </div>
+
+          <!-- Si SÍ tiene porciones (Precios múltiples tipo El Moscú) -->
+          <ng-container *ngIf="prodTienePorciones">
+            <div class="campo">
+              <label>Precio Personal (S/):</label>
+              <input type="number" step="0.50" [(ngModel)]="prodPrecioPersonal" placeholder="Ej: 30.00" class="input-control" />
+            </div>
+            <div class="campo">
+              <label>Precio Mediano (S/):</label>
+              <input type="number" step="0.50" [(ngModel)]="prodPrecioMediano" placeholder="Ej: 40.00" class="input-control" />
+            </div>
+            <div class="campo">
+              <label>Precio Familiar (S/):</label>
+              <input type="number" step="0.50" [(ngModel)]="prodPrecioFamiliar" placeholder="Ej: 50.00" class="input-control" />
+            </div>
+          </ng-container>
+
+          <!-- Subida de Foto y Vista Previa con botón X para descartar -->
+          <div class="foto-upload-container">
+            <div class="box-subir-foto">
+              <label>Foto Real (Opcional):</label>
+              <input type="file" id="filePlatoCarta" accept="image/*" (change)="seleccionarImagen($event)" style="display: none;" />
+              <label for="filePlatoCarta" class="btn-custom-file">
+                📁 {{ archivoSeleccionado ? 'Foto Lista' : 'Seleccionar Foto' }}
+              </label>
+            </div>
+
+            <div *ngIf="previewImagenUrl" class="box-preview-inline">
+              <img [src]="previewImagenUrl" class="img-preview-mini" alt="Preview" />
+              <span style="font-size: 0.68rem; color: #10b981; font-weight: bold;">Lista</span>
+              
+              <!-- Botón flotante para descartar la foto -->
+              <button 
+                type="button" 
+                class="btn-remove-img" 
+                (click)="cancelarImagenSeleccionada()" 
+                title="Descartar imagen">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div class="campo" style="grid-column: 1 / -1;">
+            <label>Descripción / Ingredientes:</label>
+            <input type="text" [(ngModel)]="prodDescripcion" placeholder="Ej: A base de pescado, mariscos y conchas negras" class="input-control" autocomplete="off" />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 6px;">
+          <button class="btn-guardar" [disabled]="cargandoCarta" (click)="guardarProductoCarta()">
+            {{ cargandoCarta ? '⏳ Guardando en la nube...' : (editandoProductoId ? '💾 Actualizar ' + (prodCategoria === 'bebidas' ? 'Bebida' : 'Plato') : '🚀 Agregar a la Carta') }}
+          </button>
+          <button *ngIf="editandoProductoId && !cargandoCarta" class="btn-cancelar-edicion" (click)="limpiarFormularioCarta()" style="background: #475569; color: white; border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            Cancelar
+          </button>
+        </div>
+      </section>
+
+      <!-- SECCIÓN DE CATEGORÍAS DESLIZABLES (Estilo Zapatillas en 2 columnas) -->
+      <section class="card-seccion">
+        <div class="tabla-header">
+          <h2 class="titulo-seccion-carta-actual">📋 Carta Actual del Local</h2>
+          <span class="total-badge">Total: {{ listaProductosCarta.length }}</span>
+        </div>
+
+        <!-- Navbar Deslizable de Categorías (Sticky) -->
+        <div class="chips-categorias-container">
+          <button [class.active]="categoriaSeleccionada === 'todos'" (click)="categoriaSeleccionada = 'todos'">
+            ✨ Todos
+          </button>
+          <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="categoriaSeleccionada = 'ceviches'">
+            🐟 Ceviches
+          </button>
+          <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="categoriaSeleccionada = 'sudados'">
+            🍲 Sudados
+          </button>
+          <button [class.active]="categoriaSeleccionada === 'secos'" (click)="categoriaSeleccionada = 'secos'">
+            🥩 Secos
+          </button>
+          <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="categoriaSeleccionada = 'jaleas'">
+            🍤 Jaleas
+          </button>
+          <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">
+            🥤 Bebidas
+          </button>
+        </div>
+
+        <!-- GRILLA DE CARDS (De 2 en 2 simultáneas) -->
+        <div class="productos-grid-cards">
+          <div *ngFor="let p of filtrarProductosPorCategoria()" class="producto-card-item">
+            
+            <!-- Imagen o Placeholder -->
+            <div class="card-img-wrapper">
+              <img 
+                [src]="p.imagenUrl || 'assets/img/plato-default.png'" 
+                (error)="$any($event.target).src = 'assets/img/plato-default.png'"
+                alt="Plato" />
+              <span class="badge-cat-tag">{{ p.categoria | uppercase }}</span>
+            </div>
+
+            <!-- Info del plato -->
+            <div class="card-body-info">
+              <h3>{{ p.nombre }}</h3>
+              <p class="card-desc">{{ p.descripcion || 'Sin descripción adicional.' }}</p>
+
+              <!-- Muestra precios múltiples o precio único -->
+              <div class="card-precios-box">
+                <ng-container *ngIf="p.tienePorciones; else precioUnico">
+                  <span class="txt-precio-desde">Personal: <strong>S/ {{ p.porciones?.personal ? p.porciones.personal.toFixed(2) : '0.00' }}</strong></span>
+                  <span class="txt-precio-desde">Mediano: <strong>S/ {{ p.porciones?.mediano ? p.porciones.mediano.toFixed(2) : '0.00' }}</strong></span>
+                  <span class="txt-precio-desde">Familiar: <strong>S/ {{ p.porciones?.familiar ? p.porciones.familiar.toFixed(2) : '0.00' }}</strong></span>
+                </ng-container>
+                <ng-template #precioUnico>
+                  <span class="txt-precio-unico">S/ {{ p.precio ? p.precio.toFixed(2) : '0.00' }}</span>
+                </ng-template>
+              </div>
+
+              <!-- Estado y Acciones de la Dueña -->
+              <div class="card-footer-actions">
+                <span class="badge-estado" [class.activo]="p.disponible" [class.inactivo]="!p.disponible">
+                  {{ p.disponible ? '🟢 Visible' : '🔴 Oculto' }}
+                </span>
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn-card-accion editar" (click)="prepararEdicionProducto(p)" title="Editar">✏️</button>
+                  <button class="btn-card-accion eliminar" (click)="eliminarProductoCarta(p)" title="Eliminar">🗑️</button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Mensaje si no hay productos -->
+          <div *ngIf="filtrarProductosPorCategoria().length === 0" class="sin-datos" style="grid-column: 1 / -1;">
+            No hay elementos registrados en esta categoría.
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- ================= PESTAÑA 3: CONFIGURACIÓN DE MARCA Y LOGO ================= -->
+    <div *ngIf="tabActiva === 'config'" class="tab-contenido">
+      <section class="card-seccion">
+        <h2>🎨 Logotipo del Local</h2>
+        <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.3;">
+          Se actualizará al instante en tu panel, cocina, mozos y carta digital.
+        </p>
+    
+        <!-- Contenedor responsivo -->
+        <div class="logo-config-flex">
+          <div class="box-logo-actual">
+            <label class="lbl-sub">Actual:</label>
+            <img [src]="logoUrlActivo || 'img/logo-moscu.png'" class="img-logo-preview" alt="Logo Actual" />
+          </div>
+    
+          <div class="box-logo-nuevo">
+            <label class="lbl-sub">Nuevo Logotipo:</label>
+    
+            <input type="file" id="fileLogo" accept="image/*" (change)="seleccionarLogoDuena($event)"
+              style="display: none;" />
+            <label for="fileLogo" class="btn-custom-file">
+              📁 {{ archivoLogoDuena ? 'Imagen Lista' : 'Elegir Imagen' }}
+            </label>
+    
+            <span class="nombre-archivo-txt">
+              {{ archivoLogoDuena ? archivoLogoDuena.name : 'Ningún archivo elegido' }}
+            </span>
+          </div>
+        </div>
+    
+        <!-- Previsualización del nuevo logo seleccionado -->
+        <div *ngIf="previewLogoDuena" class="preview-nuevo-box">
+          <span style="font-size: 0.72rem; color: #10b981; font-weight: bold; white-space: nowrap;">Vista previa:</span>
+          <img [src]="previewLogoDuena"
+            style="width: 36px; height: 36px; border-radius: 6px; object-fit: contain; background: #0b0f19;"
+            alt="Preview" />
+        </div>
+    
+        <button class="btn-guardar" [disabled]="cargandoLogoDuenia" (click)="guardarNuevoLogoDuena()">
+          {{ cargandoLogoDuenia ? '⏳ Subiendo a la nube...' : '💾 Guardar Logotipo' }}
+        </button>
+      </section>
+    </div>
+
+  </main>
+</div>

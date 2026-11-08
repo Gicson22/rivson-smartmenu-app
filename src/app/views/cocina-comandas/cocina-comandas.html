@@ -1,0 +1,121 @@
+<div class="cocina-container">
+  
+  <!-- ZONA SUPERIOR FIJA: Header, Cocineros y Barra Horizontal de Pestañas -->
+  <div class="header-fijo-cocina">
+    <header class="header-cocina">
+      <h1>🍳 Cocina - Comandas en Vivo (KDS)</h1>
+      <span class="badge-estado-vivo">🟢 Sistema Activo</span>
+    </header>
+
+    <section class="panel-cocineros">
+      <h3>👨‍🍳 Rendimiento y Estado del Personal</h3>
+      <div class="grid-cocineros">
+        <div *ngFor="let c of cocineros" class="card-cocinero" [ngClass]="c.platosEnCurso > 0 ? 'ocupado' : 'libre'">
+          <div class="cocinero-info">
+            <div class="cocinero-titulo-row">
+              <strong>{{ c.nombre }}</strong>
+              <button class="btn-ojito" (click)="verDetalleCocinero(c)" title="Ver detalle de platos preparados">
+                👁️
+              </button>
+            </div>
+            <span class="badge-estado-cocinero">
+              {{ c.platosEnCurso > 0 ? '🔥 En curso: ' + c.platosEnCurso : '🟢 Libre' }}
+            </span>
+            <small class="historial-dia">🏆 Total hoy: <strong>{{ c.platosPreparadosHoy }}</strong> platos</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BARRA HORIZONTAL DE PESTAÑAS (TABS MÓVILES) -->
+    <nav class="tabs-horizontal">
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroEstado === 'solicitado'" 
+        (click)="filtroEstado = 'solicitado'">
+        ⏳ En Cola <span class="badge-count">{{ contarEstado('solicitado') }}</span>
+      </button>
+
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroEstado === 'preparando'" 
+        (click)="filtroEstado = 'preparando'">
+        🔥 Preparando <span class="badge-count">{{ contarEstado('preparando') }}</span>
+      </button>
+
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroEstado === 'listo'" 
+        (click)="filtroEstado = 'listo'">
+        ✅ Listos <span class="badge-count">{{ contarEstado('listo') }}</span>
+      </button>
+
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroEstado === 'todos'" 
+        (click)="filtroEstado = 'todos'">
+        📋 Todos
+      </button>
+    </nav>
+  </div>
+
+  <main class="contenido-cocina">
+    <!-- LISTADO DE COMANDAS FILTRADAS -->
+    <section class="seccion-cola">
+      <div class="lista-comandas">
+        <div *ngFor="let cmd of comandasFiltradas" class="card-comanda" [ngClass]="cmd.estado">
+          
+          <div class="comanda-header">
+            <span class="mesa-tag">MESA N° {{ cmd.numeroMesa }}</span>
+            <span class="hora-tag">🕒 {{ cmd.horaPedido }}</span>
+            <span class="estado-badge" [ngClass]="cmd.estado">
+              {{ cmd.estado === 'solicitado' ? '⏳ EN COLA' : cmd.estado === 'preparando' ? '🔥 PREPARANDO' : '✅ LISTO EN BARRA' }}
+            </span>
+          </div>
+
+          <div class="comanda-body">
+            <p class="titulo-platos">Platos Solicitados:</p>
+            <ul class="items-lista">
+              <li *ngFor="let it of cmd.items">
+                <strong>{{ it.cantidad }}x</strong> {{ it.nombre }}
+              </li>
+            </ul>
+            <div *ngIf="cmd.cocineroAsignado" class="asignado-txt">
+              👨‍🍳 Asignado a: <strong>{{ cmd.cocineroAsignado }}</strong>
+            </div>
+          </div>
+
+          <div class="comanda-footer">
+            <div *ngIf="cmd.estado === 'solicitado'" class="selector-tomar">
+              <p class="small-label">Asignar a cocinero:</p>
+              <div class="botones-cocineros">
+                <button 
+                  *ngFor="let cocinero of cocineros" 
+                  class="btn-tomar"
+                  (click)="iniciarPreparacion(cmd, cocinero)">
+                  {{ cocinero.nombre.replace('Cocinero ', '') }}
+                </button>
+              </div>
+            </div>
+
+            <button 
+              *ngIf="cmd.estado === 'preparando'" 
+              class="btn-listo"
+              (click)="marcarListo(cmd)">
+              ✅ Marcar "Listo para Llevar"
+            </button>
+
+            <div *ngIf="cmd.estado === 'listo'" class="listo-mensaje">
+              ✔️ Plato despachado a barra (Esperando Mozo)
+            </div>
+          </div>
+
+        </div>
+
+        <div *ngIf="comandasFiltradas.length === 0" class="sin-pedidos">
+          🎉 ¡No hay pedidos en esta sección!
+        </div>
+      </div>
+    </section>
+  </main>
+</div>

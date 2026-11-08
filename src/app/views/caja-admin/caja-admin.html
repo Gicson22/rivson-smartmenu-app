@@ -1,0 +1,135 @@
+<div class="caja-container">
+  <!-- Header de Caja -->
+  <header class="header-caja">
+    <div class="info-turno">
+      <h1>💰 Caja - Picantería Moscú</h1>
+      <span *ngIf="cajeroActual" class="badge-cajero-info">
+         cashier: {{ cajeroActual.nombre }} (DNI: {{ cajeroActual.dni }})
+      </span>
+    </div>
+    <button class="btn-salir-turno" (click)="cerrarTurno()">Cerrar Turno 🚪</button>
+  </header>
+
+  <main class="contenido-caja">
+    
+    <!-- 📊 PANEL FINANCIERO DINÁMICO -->
+    <section class="panel-financiero">
+      <h3>📊 Resumen Financiero del Turno</h3>
+      <div class="grid-metricas">
+        
+        <div class="card-metrica caja">
+          <span class="metrica-label">💵 Dinero en Caja</span>
+          <span class="metrica-valor">S/ {{ displayDineroEnCaja.toFixed(2) }}</span>
+          <small>Líquido acumulado hoy</small>
+        </div>
+
+        <div class="card-metrica deuda">
+          <span class="metrica-label">⏳ Por Cobrar</span>
+          <span class="metrica-valor">S/ {{ displayPorCobrar.toFixed(2) }}</span>
+          <small>Deuda en mesas activas</small>
+        </div>
+
+      </div>
+      <div class="total-general-bar">
+        <span>Venta Total Acumulada:</span>
+        <strong>S/ {{ displayTotalVenta.toFixed(2) }}</strong>
+      </div>
+    </section>
+
+    <!-- Pestañas: Cuentas Activas vs Historial de Mesas Atendidas -->
+    <div class="nav-pestañas">
+      <button 
+        (click)="vistaActiva = 'cuentas'" 
+        [class.activo]="vistaActiva === 'cuentas'">
+        💳 Cuentas Activas ({{ cuentasActivas.length }})
+      </button>
+      <button 
+        (click)="vistaActiva = 'historial'" 
+        [class.activo]="vistaActiva === 'historial'">
+        📜 Historial de Mesas Atendidas ({{ historialTickets.length }})
+      </button>
+    </div>
+
+    <!-- VISTA 1: CUENTAS ACTIVAS EN LAS MESAS -->
+    <ng-container *ngIf="vistaActiva === 'cuentas'">
+      <div class="panel-filtros-caja">
+        <div class="botones-filtro">
+          <button (click)="filtroEstado = 'todos'" [class.activo]="filtroEstado === 'todos'">Todas</button>
+          <button (click)="filtroEstado = 'pendiente'" [class.activo]="filtroEstado === 'pendiente'">⏳ Por Cobrar</button>
+          <button (click)="filtroEstado = 'pagado'" [class.activo]="filtroEstado === 'pagado'">✅ Pagadas</button>
+        </div>
+      </div>
+
+      <div class="lista-mesas-caja">
+        <div *ngFor="let mesa of mesasFiltradas" class="card-caja" [ngClass]="mesa.estadoPago">
+          
+          <div class="card-caja-header">
+            <span>MESA N° {{ mesa.numeroMesa }}</span>
+            <span class="badge-estado" [ngClass]="mesa.estadoPago">
+              {{ mesa.estadoPago === 'pagado' ? '✅ PAGADO' : '⏳ PENDIENTE' }}
+            </span>
+          </div>
+
+          <div class="card-caja-body">
+            <p class="cliente-txt"><strong>Ingreso:</strong> 🕒 {{ mesa.horaIngreso }}</p>
+            <p class="sub-title">Consumo de la Mesa:</p>
+            <ul class="items-consumo-list">
+              <li *ngFor="let item of mesa.items">
+                <span>{{ item.cantidad }}x {{ item.nombre }}</span>
+                <span>S/ {{ (item.cantidad * item.precioUnitario).toFixed(2) }}</span>
+              </li>
+            </ul>
+            <div class="total-caja-cuenta">
+              <span>Total a Pagar:</span>
+              <strong>S/ {{ mesa.total.toFixed(2) }}</strong>
+            </div>
+          </div>
+
+          <div class="card-caja-footer">
+            <button 
+              class="btn-cobrar" 
+              [ngClass]="mesa.estadoPago"
+              [disabled]="mesa.estadoPago === 'pagado'"
+              (click)="cobrarMesa(mesa)">
+              {{ mesa.estadoPago === 'pagado' ? '✔️ Cuenta Cancelada' : '💳 Registrar Cobro' }}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- VISTA 2: HISTORIAL DE MESAS ATENDIDAS -->
+    <ng-container *ngIf="vistaActiva === 'historial'">
+      <div class="panel-filtros-caja">
+        <input 
+          type="text" 
+          [(ngModel)]="busquedaMesaHistorial" 
+          placeholder="🔍 Buscar por N° de Mesa..." 
+          class="input-buscar-historial"
+        />
+      </div>
+
+      <div class="lista-historial">
+        <div *ngFor="let ticket of historialFiltrado" class="card-historial-ticket">
+          <div class="historial-header">
+            <strong>Mesa N° {{ ticket.numeroMesa }}</strong>
+            <span class="hora-tag">🕒 {{ ticket.horaIngreso }} - {{ ticket.horaSalida || 'En proceso' }}</span>
+          </div>
+          <div class="historial-body">
+            <small *ngFor="let it of ticket.items">{{ it.cantidad }}x {{ it.nombre }} | </small>
+            <div class="historial-total">
+              <span>Total Cancelado:</span>
+              <strong class="txt-verde">S/ {{ ticket.total.toFixed(2) }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="historialFiltrado.length === 0" class="sin-registros">
+          No hay registros en el historial.
+        </div>
+      </div>
+    </ng-container>
+
+  </main>
+</div>

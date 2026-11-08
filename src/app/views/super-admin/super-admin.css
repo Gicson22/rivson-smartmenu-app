@@ -1,0 +1,260 @@
+* {
+  box-sizing: border-box !important;
+}
+
+.saas-container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 10px;
+  background-color: #0b0f19;
+  color: #f8fafc;
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+.saas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1e293b;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.header-info h1 {
+  margin: 0;
+  font-size: 1rem;
+  color: #38bdf8;
+  font-weight: 700;
+}
+
+.header-info p {
+  margin: 2px 0 0 0;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.btn-salir {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.saas-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.saas-card {
+  background: #1e293b;
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #334155;
+  width: 100%;
+}
+
+.saas-card h2 {
+  margin: 0 0 10px 0;
+  font-size: 0.95rem;
+  color: #f59e0b;
+  border-bottom: 1px solid #334155;
+  padding-bottom: 6px;
+}
+
+.form-bloque {
+  background: #0f172a;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #334155;
+  width: 100%;
+}
+
+.bloque-titulo {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.form-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.form-grupo:last-child {
+  margin-bottom: 0;
+}
+
+.form-grupo label {
+  font-size: 0.73rem;
+  color: #cbd5e1;
+}
+
+.input-app {
+  width: 100%;
+  background: #1e293b;
+  border: 1px solid #475569;
+  color: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.input-app:focus {
+  border-color: #38bdf8;
+}
+
+.grid-2-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
+.color-picker-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #1e293b;
+  padding: 4px 8px;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  width: 100%;
+}
+
+.color-picker-wrapper input[type="color"] {
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-picker-wrapper code {
+  font-size: 0.7rem;
+  color: #38bdf8;
+}
+
+.input-password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.input-con-icono {
+  padding-right: 32px !important;
+}
+
+.btn-toggle-eye {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+}
+
+.btn-guardar {
+  width: 100%;
+  background: #38bdf8;
+  color: #0f172a;
+  border: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 4px;
+}
+
+.tabla-contenedor {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tabla-app {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.tabla-app th, .tabla-app td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #334155;
+}
+
+.tabla-app th {
+  background: #0f172a;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.negocio-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.id-tag {
+  font-size: 0.65rem;
+  color: #38bdf8;
+  font-family: monospace;
+}
+
+.badge-estado {
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: bold;
+  background: #ef4444;
+  color: white;
+  text-transform: uppercase;
+}
+
+.badge-estado.activo {
+  background: #10b981;
+}
+
+.btn-estado {
+  border: none;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: bold;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-suspender { background: #ef4444; color: white; }
+.btn-activar { background: #10b981; color: white; }
+
+.texto-vacio {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  padding: 10px;
+}

@@ -1,0 +1,77 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="brand-wrapper">
+        <img src="img/rivson-icon.png" alt="Rivson Logo" class="brand-logo" />
+        <p class="subtitulo-brand">Plataforma de Gestión Gastronómica</p>
+      </div>
+    </div>
+
+    <div class="form-grupo">
+      <label>Selecciona tu Rol:</label>
+      <select [(ngModel)]="rolSeleccionado" class="input-control">
+        <option value="mozo">🛎️ Mozo (Salón)</option>
+        <option value="cocina">👨‍🍳 Cocina / Comandas</option>
+        <option value="caja">💰 Caja y Pagos</option>
+        <option value="guardia">🚪 Guardia de Puerta</option>
+        <option value="dueña">👑 Dueña (Administrador)</option>
+      </select>
+    </div>
+
+    <!-- Campo DNI -->
+    <div class="form-grupo">
+      <label>Número de DNI:</label>
+      <div class="input-clear-wrapper">
+        <input 
+          #inputDni
+          type="text" 
+          [(ngModel)]="dniUsuario" 
+          placeholder="Ej: 45891234" 
+          maxlength="8" 
+          class="input-control input-con-clear" 
+          autocomplete="off" />
+        <button 
+          type="button" 
+          class="btn-clear" 
+          *ngIf="dniUsuario && dniUsuario.length > 0" 
+          (click)="limpiarDni(inputDni)"
+          title="Limpiar DNI">
+          ✕
+        </button>
+      </div>
+    </div>
+
+    <!-- Campo PIN (Sin icono duplicado, solo 'X' y el ojo) -->
+    <div class="form-grupo">
+      <label>PIN o Contraseña de Acceso:</label>
+      <div class="input-clear-wrapper">
+        <input 
+          #inputPin
+          [type]="verPassword ? 'text' : 'password'" 
+          [(ngModel)]="pinAcceso" 
+          placeholder="****" 
+          class="input-control input-con-doble-icono" 
+          autocomplete="current-password" />
+        
+        <!-- Botón limpiar (X) -->
+        <button 
+          type="button" 
+          class="btn-clear-pin" 
+          *ngIf="pinAcceso && pinAcceso.length > 0" 
+          (click)="limpiarPin(inputPin)"
+          title="Limpiar PIN">
+          ✕
+        </button>
+
+        <!-- Botón del ojo único -->
+        <button type="button" class="btn-toggle-eye" (click)="toggleVerPassword()">
+          {{ verPassword ? '🙈' : '👁️' }}
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-ingresar" [disabled]="cargando" (click)="ingresarAlSistema()">
+      {{ cargando ? 'Verificando...' : 'Iniciar Turno ✨' }}
+    </button>
+  </div>
+</div>

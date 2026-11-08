@@ -1,0 +1,130 @@
+<div class="mozo-container">
+  
+  <!-- ZONA SUPERIOR FIJA: Header y Barra Horizontal de Pestañas -->
+  <div class="header-fijo-mozo">
+    <header class="header-mozo">
+      <div class="mozo-info-user">
+        <h1>📋 Salón - Control de Mozo</h1>
+        <span class="badge-mozo">👤 {{ nombreMozoActual }}</span>
+      </div>
+      <span class="badge-estado-vivo">🟢 En Línea</span>
+    </header>
+
+    <!-- BARRA HORIZONTAL DE NAVEGACIÓN (TABS) -->
+    <nav class="tabs-horizontal">
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroMozoTab === 'libres'" 
+        (click)="filtroMozoTab = 'libres'">
+        🟢 Libres <span class="badge-count">{{ contarTab('libres') }}</span>
+      </button>
+
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroMozoTab === 'mis-mesas'" 
+        (click)="filtroMozoTab = 'mis-mesas'">
+        ⭐ Mis Mesas <span class="badge-count">{{ contarTab('mis-mesas') }}</span>
+      </button>
+
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroMozoTab === 'colegas'" 
+        (click)="filtroMozoTab = 'colegas'">
+        🔒 Colegas <span class="badge-count">{{ contarTab('colegas') }}</span>
+      </button>
+
+      <button 
+        class="tab-btn alerta-tab" 
+        [class.active]="filtroMozoTab === 'alertas'" 
+        (click)="filtroMozoTab = 'alertas'">
+        🚨 Alertas <span class="badge-count">{{ contarTab('alertas') }}</span>
+      </button>
+    </nav>
+  </div>
+
+  <main class="contenido-mozo">
+    
+    <!-- LISTA DE MESAS FILTRADAS SEGÚN LA PESTAÑA ACTIVA -->
+    <div class="lista-mesas-mozo">
+      <div *ngFor="let mesa of mesasFiltradas" class="card-mesa-mozo" [ngClass]="{'mia': mesa.mozoAsignado === nombreMozoActual, 'libre': !mesa.mozoAsignado, 'ajena': mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual, 'alerta-llamando': mesa.estadoMesa === 'llamando'}">
+        
+        <div class="card-mesa-header">
+          <span class="tag-mesa">MESA N° {{ mesa.numeroMesa }}</span>
+          <span class="badge-duenio" [ngClass]="{'libre': !mesa.mozoAsignado, 'mio': mesa.mozoAsignado === nombreMozoActual, 'otro': mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual}">
+            {{ !mesa.mozoAsignado ? '🟢 Libre' : (mesa.mozoAsignado === nombreMozoActual ? '⭐ Tu Mesa' : '🔒 ' + mesa.mozoAsignado) }}
+          </span>
+        </div>
+
+        <div class="card-mesa-body">
+          
+          <!-- ACCIÓN SI ESTÁ LIBRE -->
+          <div *ngIf="!mesa.mozoAsignado" class="bloque-libre-accion">
+            <p class="txt-libre-info">Mesa sin responsable asignado.</p>
+            <button class="btn-tomar-mesa" (click)="tomarMesa(mesa)">
+              ✋ Tomar Mesa N° {{ mesa.numeroMesa }}
+            </button>
+          </div>
+
+          <!-- ALERTA SI ESTÁ LLAMANDO -->
+          <div *ngIf="mesa.estadoMesa === 'llamando'" class="bloque-llamada-urgente">
+            <p class="txt-llamada">{{ mesa.llamadaMotivo }}</p>
+            <button *ngIf="mesa.mozoAsignado === nombreMozoActual" class="btn-atender-llamado" (click)="atenderLlamado(mesa)">
+              ✅ Atender Llamado
+            </button>
+          </div>
+
+          <!-- DETALLE SI ES TU MESA -->
+          <div *ngIf="mesa.mozoAsignado === nombreMozoActual">
+            
+            <div *ngIf="mesa.pedidosBebidasExtras.length > 0" class="bloque-sub">
+              <p class="sub-titulo-bloque">🍻 Bebidas / Extras Pendientes:</p>
+              <ul class="lista-items">
+                <li *ngFor="let item of mesa.pedidosBebidasExtras; let i = index" class="item-fila">
+                  <span><strong>{{ item.cantidad }}x</strong> {{ item.nombre }}</span>
+                  <button class="btn-despachar" (click)="marcarBebidaAtendida(mesa, i)">
+                    ✅ Entregar
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div *ngIf="mesa.platosEnCocina.length > 0" class="bloque-sub">
+              <p class="sub-titulo-bloque">🍳 Platos en Cocina / Barra:</p>
+              <ul class="lista-items">
+                <li *ngFor="let plato of mesa.platosEnCocina" class="item-fila plato-row" [ngClass]="plato.estado">
+                  <div class="plato-info-txt">
+                    <span><strong>{{ plato.cantidad }}x</strong> {{ plato.nombre }}</span>
+                    <small class="estado-plato-txt">
+                      {{ plato.estado === 'solicitado' ? '⏳ En cola' : plato.estado === 'preparando' ? '🔥 En fuego' : '✅ ¡LISTO EN BARRA!' }}
+                    </small>
+                  </div>
+                  <button *ngIf="plato.estado === 'listo'" class="btn-urgente-recoger" (click)="entregarPlato(mesa, plato)">
+                    🏃‍♂️ ¡Recoger y Servir!
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div *ngIf="mesa.pedidosBebidasExtras.length === 0 && mesa.platosEnCocina.length === 0" class="sin-pedidos-activos">
+              ✨ Mesa al día (Sin pendientes activos).
+            </div>
+
+          </div>
+
+          <!-- SI ES DE UN COLEGA -->
+          <div *ngIf="mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual" class="bloque-ajeno">
+            <p class="txt-ajeno">Atendido por tu colega ({{ mesa.mozoAsignado }}).</p>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div *ngIf="mesasFiltradas.length === 0" class="sin-pedidos">
+        🎉 No hay mesas registradas en esta sección.
+      </div>
+
+    </div>
+
+  </main>
+</div>

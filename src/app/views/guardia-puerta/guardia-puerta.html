@@ -1,0 +1,104 @@
+<div class="guardia-container">
+  <!-- Header Arreglado y Compacto -->
+  <header class="header-guardia">
+    <div class="info-turno">
+      <h1>🚪 Puerta - Moscú</h1>
+      <span *ngIf="guardiaActual" class="badge-guardia-info">
+        🛡️ {{ guardiaActual.nombre }} (DNI: {{ guardiaActual.dni }})
+      </span>
+    </div>
+    <button class="btn-salir-turno" (click)="cerrarTurno()">Cerrar Turno 🚪</button>
+  </header>
+
+  <main class="contenido-guardia">
+    
+    <!-- Filtros y Buscador -->
+    <div class="panel-control-mesas">
+      <div class="stats-rapidas">
+        <span class="pill libre">🟢 Libres: {{ totalLibres }}</span>
+        <span class="pill ocupada">🔴 Ocupadas: {{ totalOcupadas }}</span>
+      </div>
+
+      <div class="filtros-busqueda">
+        <input 
+          type="number" 
+          [(ngModel)]="busquedaMesa" 
+          placeholder="🔍 N° de Mesa..." 
+          class="input-buscar" 
+        />
+        <div class="botones-filtro">
+          <button (click)="filtroEstado = 'todas'" [class.activo]="filtroEstado === 'todas'">Todas</button>
+          <button (click)="filtroEstado = 'libres'" [class.activo]="filtroEstado === 'libres'">Libres</button>
+          <button (click)="filtroEstado = 'ocupadas'" [class.activo]="filtroEstado === 'ocupadas'">Ocupadas</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cuadrícula de 100 Mesas con Tamaño Uniforme -->
+    <div class="grid-100-mesas">
+      <div *ngFor="let mesa of mesasFiltradas" class="card-mesa-grid" [ngClass]="mesa.estadoMesa">
+        
+        <!-- Si la mesa está libre -->
+        <ng-container *ngIf="mesa.estadoMesa === 'libre'">
+          <div class="grid-header libre">
+            <span>MESA {{ mesa.numeroMesa }}</span>
+            <small>LIBRE</small>
+          </div>
+          <div class="grid-body-uniforme">
+            <span class="txt-disp">✅ Disponible</span>
+          </div>
+        </ng-container>
+
+        <!-- Si la mesa está ocupada (Con Botón de Ojito 👁️) -->
+        <ng-container *ngIf="mesa.estadoMesa === 'ocupada'">
+          <div class="grid-header ocupada" [ngClass]="mesa.estadoPago">
+            <span>MESA {{ mesa.numeroMesa }}</span>
+            <button class="btn-ojito" (click)="verDetalleMesa(mesa)" title="Ver Consumo">👁️ Ver</button>
+          </div>
+          <div class="grid-body-uniforme">
+            <p class="cliente-short"><strong>Clt:</strong> {{ mesa.cliente }}</p>
+            <p class="total-short"><strong>S/ {{ mesa.total?.toFixed(2) }}</strong></p>
+            <span class="estado-badge-mini" [ngClass]="mesa.estadoPago">
+              {{ mesa.estadoPago === 'pagado' ? '✅ PAGADO' : '⏳ DEBE' }}
+            </span>
+          </div>
+        </ng-container>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL DE DETALLE DE CONSUMO (El Ojito) -->
+  <div class="modal-overlay" *ngIf="mesaSeleccionadaDetalle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Mesa N° {{ mesaSeleccionadaDetalle.numeroMesa }}</h2>
+        <button class="btn-cerrar-modal" (click)="cerrarModalDetalle()">✖</button>
+      </div>
+
+      <div class="modal-body">
+        <p><strong>Cliente:</strong> {{ mesaSeleccionadaDetalle.cliente }}</p>
+        <p class="sub-titulo-platos">Platos Consumidos:</p>
+        <ul class="lista-platos-modal">
+          <li *ngFor="let it of mesaSeleccionadaDetalle.items">
+            <span>{{ it.cantidad }}x {{ it.nombre }}</span>
+          </li>
+        </ul>
+        <div class="modal-total-cuenta">
+          <span>Total a Pagar:</span>
+          <strong>S/ {{ mesaSeleccionadaDetalle.total?.toFixed(2) }}</strong>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button 
+          class="btn-accion-modal" 
+          [ngClass]="mesaSeleccionadaDetalle.estadoPago"
+          (click)="autorizarSalida(mesaSeleccionadaDetalle)">
+          {{ mesaSeleccionadaDetalle.estadoPago === 'pagado' ? '🚪 Autorizar Salida y Liberar Mesa' : '🔒 Mesa con Deuda Pendiente' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

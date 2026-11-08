@@ -1,0 +1,163 @@
+<div class="saas-container">
+  
+  <!-- Header Compacto -->
+  <header class="saas-header">
+    <div class="header-info">
+      <h1>🚀 Rivson SaaS</h1>
+      <p>Panel Maestro & Licencias</p>
+    </div>
+    <button class="btn-salir" (click)="cerrarSesion()">🚪 Salir</button>
+  </header>
+
+  <main class="saas-content">
+    
+    <!-- Card Formulario -->
+    <section class="saas-card">
+      <h2>🏪 Dar de Alta Picantería</h2>
+
+      <!-- Bloque 1: Datos Negocio -->
+      <div class="form-bloque">
+        <span class="bloque-titulo">1. Datos del Negocio</span>
+        
+        <div class="form-grupo">
+          <label>ID Único (ej: moscu):</label>
+          <input type="text" [(ngModel)]="nuevoRestaurantId" placeholder="Ej: moscu" class="input-app" autocomplete="off" />
+        </div>
+
+        <div class="form-grupo">
+          <label>Nombre Comercial:</label>
+          <input type="text" [(ngModel)]="nuevoNombreComercial" placeholder="Ej: Picantería Moscú" class="input-app" autocomplete="off" />
+        </div>
+
+        <div class="form-grupo">
+          <label>RUC / DNI Titular:</label>
+          <input type="text" [(ngModel)]="nuevoRuc" placeholder="Ej: 20601234567" class="input-app" autocomplete="off" />
+        </div>
+
+        <!-- 📸 SUBIDA DIRECTA DE LOGO CON PREVISUALIZACIÓN -->
+        <div class="form-grupo">
+          <label>Logo / Icono del Negocio:</label>
+          <input type="file" accept="image/*" (change)="seleccionarLogo($event)" class="input-app" style="padding: 5px;" />
+        </div>
+
+        <!-- Vista previa si seleccionaste un archivo -->
+        <div *ngIf="previewLogoUrl" style="margin-top: 6px; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 0.7rem; color: #94a3b8;">Vista Previa:</span>
+          <img [src]="previewLogoUrl" style="width: 36px; height: 36px; border-radius: 6px; object-fit: cover; border: 1px solid #38bdf8;" alt="Preview Logo" />
+        </div>
+      </div>
+
+      <!-- Bloque 2: Colores -->
+      <div class="form-bloque">
+        <span class="bloque-titulo">2. Personalización Marca Blanca</span>
+        <div class="grid-2-col">
+          <div class="form-grupo">
+            <label>Color Primario:</label>
+            <div class="color-picker-wrapper">
+              <input type="color" [(ngModel)]="primaryColor" />
+              <code>{{ primaryColor }}</code>
+            </div>
+          </div>
+          <div class="form-grupo">
+            <label>Color Secundario:</label>
+            <div class="color-picker-wrapper">
+              <input type="color" [(ngModel)]="secondaryColor" />
+              <code>{{ secondaryColor }}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloque 3: Dueña -->
+      <div class="form-bloque">
+        <span class="bloque-titulo">3. Cuenta Inicial Dueña</span>
+        
+        <div class="form-grupo">
+          <label>Nombre de la Dueña:</label>
+          <input type="text" [(ngModel)]="nombreDuenia" placeholder="Ej: María Pérez" class="input-app" autocomplete="off" />
+        </div>
+
+        <div class="grid-2-col">
+          <div class="form-grupo">
+            <label>DNI:</label>
+            <input type="text" [(ngModel)]="dniDuenia" maxlength="8" placeholder="Ej: 45891234" class="input-app" autocomplete="off" />
+          </div>
+
+          <div class="form-grupo">
+            <label>PIN (4 dígitos):</label>
+            <div class="input-password-wrapper">
+              <input 
+                [type]="verPasswordDuenia ? 'text' : 'password'" 
+                [(ngModel)]="pinDuenia" 
+                maxlength="4" 
+                placeholder="****" 
+                class="input-app input-con-icono" 
+                autocomplete="new-password" />
+              <button type="button" class="btn-toggle-eye" (click)="toggleVerPassword()">
+                {{ verPasswordDuenia ? '🙈' : '👁️' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-guardar" [disabled]="cargandoAlta" (click)="registrarNuevaPicanteria()">
+        {{ cargandoAlta ? '⏳ Guardando e Identificando Logo...' : '✨ Registrar & Activar Local' }}
+      </button>
+    </section>
+
+    <!-- Card Tabla de Locales -->
+    <section class="saas-card">
+      <h2>📋 Locales Registrados</h2>
+
+      <div class="tabla-contenedor" *ngIf="restaurantes.length > 0; else sinRegistros">
+        <table class="tabla-app">
+          <thead>
+            <tr>
+              <th>Logo</th>
+              <th>Negocio</th>
+              <th>Estado</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of restaurantes">
+              <td>
+                <img 
+                  [src]="r.logoUrl || 'assets/img/plato-default.png'" 
+                  (error)="$any($event.target).src = 'assets/img/plato-default.png'"
+                  style="width: 30px; height: 30px; border-radius: 6px; object-fit: cover; border: 1px solid #475569;" 
+                  alt="Logo" />
+              </td>
+              <td>
+                <div class="negocio-info">
+                  <strong>{{ r.nombreComercial }}</strong>
+                  <span class="id-tag">{{ r.restaurantId }}</span>
+                </div>
+              </td>
+              <td>
+                <span class="badge-estado" [class.activo]="r.estadoSuscripcion === 'activo'">
+                  {{ r.estadoSuscripcion }}
+                </span>
+              </td>
+              <td>
+                <button 
+                  class="btn-estado" 
+                  [class.btn-suspender]="r.estadoSuscripcion === 'activo'"
+                  [class.btn-activar]="r.estadoSuscripcion !== 'activo'"
+                  (click)="cambiarEstadoLicencia(r)">
+                  {{ r.estadoSuscripcion === 'activo' ? '🚫 Suspender' : '✅ Activar' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <ng-template #sinRegistros>
+        <p class="texto-vacio">No hay restaurantes registrados en el sistema.</p>
+      </ng-template>
+    </section>
+
+  </main>
+</div>
