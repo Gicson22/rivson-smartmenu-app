@@ -69,17 +69,39 @@
             <span class="mesa-tag">MESA N° {{ cmd.numeroMesa }}</span>
             <span class="hora-tag">🕒 {{ cmd.horaPedido }}</span>
             <span class="estado-badge" [ngClass]="cmd.estado">
-              {{ cmd.estado === 'solicitado' ? '⏳ EN COLA' : cmd.estado === 'preparando' ? '🔥 PREPARANDO' : '✅ LISTO EN BARRA' }}
+              {{ cmd.estado === 'solicitado' ? '⏳ EN COLA' : cmd.estado === 'preparando' ? '🔥 PREPARANDO' : '✅ LISTO' }}
             </span>
           </div>
 
           <div class="comanda-body">
             <p class="titulo-platos">Platos Solicitados:</p>
             <ul class="items-lista">
-              <li *ngFor="let it of cmd.items">
-                <strong>{{ it.cantidad }}x</strong> {{ it.nombre }}
+              <li *ngFor="let it of cmd.items" class="item-kds-row">
+                <div class="item-main-info" style="display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <strong>{{ it.cantidad }}x</strong> {{ it.nombre }}
+                    <span class="badge-tamanio-kds" *ngIf="it.tamanioSeleccionado">
+                      ({{ it.tamanioSeleccionado | uppercase }})
+                    </span>
+                  </div>
+                  <!-- Precio total del ítem (precio x cantidad) -->
+                  <span class="item-precio-kds" style="color: #34d399; font-weight: bold; font-size: 0.82rem;">
+                    S/ {{ (it.precioSeleccionado * it.cantidad).toFixed(2) }}
+                  </span>
+                </div>
+                
+                <!-- Detalles adicionales: Ají y Observaciones -->
+                <div class="item-detalles-extra">
+                  <span class="tag-aji" *ngIf="it.nivelPicante">
+                    🌶️ Ají: {{ it.nivelPicante | uppercase }}
+                  </span>
+                  <span class="tag-obs" *ngIf="it.observacion">
+                    📝 Obs: {{ it.observacion }}
+                  </span>
+                </div>
               </li>
             </ul>
+
             <div *ngIf="cmd.cocineroAsignado" class="asignado-txt">
               👨‍🍳 Asignado a: <strong>{{ cmd.cocineroAsignado }}</strong>
             </div>
@@ -88,23 +110,28 @@
           <div class="comanda-footer">
             <div *ngIf="cmd.estado === 'solicitado'" class="selector-tomar">
               <p class="small-label">Asignar a cocinero:</p>
-              <div class="botones-cocineros">
-                <button 
-                  *ngFor="let cocinero of cocineros" 
-                  class="btn-tomar"
-                  (click)="iniciarPreparacion(cmd, cocinero)">
-                  {{ cocinero.nombre.replace('Cocinero ', '') }}
+              <div class="asignacion-container" style="display: flex; gap: 8px; align-items: center;">
+            
+                <select class="select-cocinero-custom" [(ngModel)]="cmd.cocineroSeleccionadoTemporal">
+                  <option [ngValue]="undefined" disabled>Seleccionar</option>
+                  <option *ngFor="let cocinero of cocineros" [ngValue]="cocinero">
+                    {{ cocinero.nombre }}
+                  </option>
+                </select>
+            
+                <!-- Botón para confirmar la asignación -->
+                <button class="btn-tomar" (click)="iniciarPreparacion(cmd)"
+                  style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                  Tomar 🚀
                 </button>
+            
               </div>
             </div>
-
-            <button 
-              *ngIf="cmd.estado === 'preparando'" 
-              class="btn-listo"
-              (click)="marcarListo(cmd)">
+            
+            <button *ngIf="cmd.estado === 'preparando'" class="btn-listo" (click)="marcarListo(cmd)">
               ✅ Marcar "Listo para Llevar"
             </button>
-
+            
             <div *ngIf="cmd.estado === 'listo'" class="listo-mensaje">
               ✔️ Plato despachado a barra (Esperando Mozo)
             </div>

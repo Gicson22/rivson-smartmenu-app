@@ -116,12 +116,13 @@ export class ClienteMenu implements OnInit {
             const data = docSnap.data();
             const items = data['items'] || [];
             const destino = data['destino'] || 'cocina';
-            const estadoGlobal = data['estado'] || 'solicitado';
+            const estadoGlobal = data['estado'] || 'solicitado'; // 'solicitado', 'preparando', 'listo'
 
             items.forEach((item: any) => {
               listaHistorial.push({
                 ...item,
-                estadoItem: item.estadoItem || estadoGlobal,
+                // Forzamos a que si el documento global cambió, el ítem tome ese estado al vuelo
+                estadoItem: estadoGlobal === 'solicitado' ? (item.estadoItem || 'solicitado') : estadoGlobal,
                 destino: destino
               });
             });
@@ -144,25 +145,29 @@ export class ClienteMenu implements OnInit {
     });
   }
 
-  get productosFiltrados(): Producto[] {
-    if (this.categoriaSeleccionada === 'todos') {
-      return this.productos.filter(p => p.disponible !== false);
-    }
-    return this.productos.filter(p => p.categoria === this.categoriaSeleccionada && p.disponible !== false);
-  }
-
   obtenerItemsPorEstado(estado: string): ItemPedidoEnviado[] {
     if (estado === 'solicitado') {
       return this.itemsPedidoEnviado.filter(item => 
         item.estadoItem === 'solicitado' || item.estadoItem === 'pendiente_despacho'
       );
     }
+    // 👈 AQUÍ ESTABA EL ERROR: Cambiamos 'en_preparacion' por 'preparando' para que coincida con la cocina
+    if (estado === 'preparando') {
+      return this.itemsPedidoEnviado.filter(item => item.estadoItem === 'preparando');
+    }
     if (estado === 'entregado') {
       return this.itemsPedidoEnviado.filter(item => 
-        item.estadoItem === 'entregado' || item.estadoItem === 'servido' || item.estadoItem === 'despachado'
+        item.estadoItem === 'entregado' || item.estadoItem === 'servido' || item.estadoItem === 'despachado' || item.estadoItem === 'listo'
       );
     }
     return this.itemsPedidoEnviado.filter(item => item.estadoItem === estado);
+  }
+
+  get productosFiltrados(): Producto[] {
+    if (this.categoriaSeleccionada === 'todos') {
+      return this.productos.filter(p => p.disponible !== false);
+    }
+    return this.productos.filter(p => p.categoria === this.categoriaSeleccionada && p.disponible !== false);
   }
 
   get itemsFiltradosModal(): ItemPedidoEnviado[] {

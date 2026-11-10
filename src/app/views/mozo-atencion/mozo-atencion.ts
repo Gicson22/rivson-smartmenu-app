@@ -1,26 +1,39 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, EnvironmentInjector, runInInjectionContext } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import Swal from 'sweetalert2';
+import { 
+  Firestore, 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  doc, 
+  updateDoc,
+  QuerySnapshot,
+  DocumentData,
+  Unsubscribe 
+} from '@angular/fire/firestore';
 
-interface ItemPedido {
+export interface ItemMesaMozo {
+  idDocumentoPedido: string;
   nombre: string;
   cantidad: number;
-  tipo: 'comida' | 'bebida' | 'extra';
+  precioSeleccionado: number;
+  estado: 'solicitado' | 'preparando' | 'listo' | 'entregado';
+  destino?: string;
+  tamanioSeleccionado?: string;
+  nivelPicante?: string;
+  observacion?: string;
 }
 
 export interface MesaSalon {
   numeroMesa: number;
   mozoAsignado: string | null;
-  estadoMesa: 'libre' | 'atendiendo' | 'llamando' | 'por_cobrar';
-  llamadaMotivo?: string;
-  pedidosBebidasExtras: ItemPedido[];
-  platosEnCocina: {
-    nombre: string;
-    cantidad: number;
-    estado: 'solicitado' | 'preparando' | 'listo';
-  }[];
+  estadoMesa: 'libre' | 'atendiendo' | 'llamando' | 'pagado';
+  itemsEnMesa: ItemMesaMozo[];
+  totalMesa: number;
 }
 
 @Component({
@@ -30,139 +43,538 @@ export interface MesaSalon {
   templateUrl: './mozo-atencion.html',
   styleUrl: './mozo-atencion.css'
 })
-export class MozoAtencion implements OnInit {
+export class MozoAtencion implements OnInit, OnDestroy {
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private firestore = inject(Firestore);
   private cdr = inject(ChangeDetectorRef);
+  private injector = inject(EnvironmentInjector);
 
-  nombreMozoActual: string = 'Mozo Juan';
+  private unsubscribePedidos?: Unsubscribe;
+  private unsubscribeMozo?: Unsubscribe;
+  private unsubscribeRestaurante?: Unsubscribe;
 
-  // Pestaña activa en la barra superior del mozo
-  filtroMozoTab: 'libres' | 'mis-mesas' | 'colegas' | 'alertas' = 'libres';
+  nombreMozoActual: string = 'Cargando mozo...'; 
+  restaurantId: string = 'moscu';
+  restaurantIconUrl: string = '';
+  
+  filtroMozoTab: 'libres' | 'mis-mesas' | 'colegas' | 'alertas' = 'alertas';
 
-  mesasSalon: MesaSalon[] = [
-    {
-      numeroMesa: 1,
-      mozoAsignado: 'Mozo Juan',
-      estadoMesa: 'atendiendo',
-      pedidosBebidasExtras: [
-        { nombre: 'Jarra de Chicha Morada', cantidad: 1, tipo: 'bebida' },
-        { nombre: 'Cerveza Cusqueña Hielera', cantidad: 2, tipo: 'bebida' }
-      ],
-      platosEnCocina: [
-        { nombre: 'Ceviche Mixto Tradicional', cantidad: 2, estado: 'listo' }
-      ]
-    },
-    {
-      numeroMesa: 2,
-      mozoAsignado: null, // Libre
+  mesasSalon: MesaSalon[] = [];
+
+  ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      if (params['local']) {
+        this.restaurantId = params['local'].trim().toLowerCase();
+      }
+    });
+
+    this.inicializarMesasBase();
+    this.cargarIconoRestaurante();
+    this.cargarMozoDesdeFirestore();
+    this.escucharPedidosSalonFirestore();
+  }
+
+  ngOnDestroy(): void {
+    if (this.unsubscribePedidos) this.unsubscribePedidos();
+    if (this.unsubscribeMozo) this.unsubscribeMozo();
+    if (this.unsubscribeRestaurante) this.unsubscribeRestaurante();
+  }
+
+  inicializarMesasBase(): void {
+    this.mesasSalon = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(num => ({
+      numeroMesa: num,
+      mozoAsignado: null,
       estadoMesa: 'libre',
-      pedidosBebidasExtras: [],
-      platosEnCocina: []
-    },
-    {
-      numeroMesa: 3,
-      mozoAsignado: 'Mozo Carlos', // Colega
-      estadoMesa: 'atendiendo',
-      pedidosBebidasExtras: [],
-      platosEnCocina: [
-        { nombre: 'Arroz con Mariscos', cantidad: 1, estado: 'preparando' }
-      ]
-    },
-    {
-      numeroMesa: 4,
-      mozoAsignado: 'Mozo Juan',
-      estadoMesa: 'llamando',
-      llamadaMotivo: '🚨 ¡El cliente está pidiendo la Cuenta!',
-      pedidosBebidasExtras: [],
-      platosEnCocina: []
-    },
-    {
-      numeroMesa: 5,
-      mozoAsignado: null, // Libre
-      estadoMesa: 'libre',
-      pedidosBebidasExtras: [],
-      platosEnCocina: []
+      itemsEnMesa: [],
+      totalMesa: 0
+    }));
+  }
+
+  cargarIconoRestaurante(): void {
+    runInInjectionContext(this.injector, () => {
+      const restRef = collection(this.firestore, 'restaurantes');
+      const qRest = query(restRef, where('restaurantId', '==', this.restaurantId));
+
+      this.unsubscribeRestaurante = onSnapshot(qRest, (snapshot: QuerySnapshot<DocumentData>) => {
+        if (!snapshot.empty) {
+          const restData = snapshot.docs[0].data();
+          this.restaurantIconUrl = restData['logoUrl'] || restData['logo'] || restData['icono'] || '';
+        } else {
+          this.restaurantIconUrl = '';
+        }
+        this.cdr.detectChanges();
+      });
+    });
+  }
+
+  cargarMozoDesdeFirestore(): void {
+    runInInjectionContext(this.injector, () => {
+      const usuariosRef = collection(this.firestore, 'usuarios');
+      const qMozos = query(
+        usuariosRef, 
+        where('rol', '==', 'mozo'),
+        where('restaurantId', '==', this.restaurantId.trim().toLowerCase())
+      );
+
+      this.unsubscribeMozo = onSnapshot(qMozos, (snapshot: QuerySnapshot<DocumentData>) => {
+        if (!snapshot.empty) {
+          const dataMozo = snapshot.docs[0].data();
+          this.nombreMozoActual = dataMozo['nombre'] || dataMozo['nombres'] || 'Mozo de Turno';
+        } else {
+          this.nombreMozoActual = 'Mozo Principal';
+        }
+        this.cdr.detectChanges();
+      });
+    });
+  }
+
+  escucharPedidosSalonFirestore(): void {
+    runInInjectionContext(this.injector, () => {
+      try {
+        const pedidosRef = collection(this.firestore, 'pedidos');
+        const q = query(
+          pedidosRef, 
+          where('restaurantId', '==', this.restaurantId)
+        );
+
+        this.unsubscribePedidos = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+          this.mesasSalon.forEach(m => {
+            m.itemsEnMesa = [];
+            m.totalMesa = 0;
+            m.mozoAsignado = null;
+          });
+
+          snapshot.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const numMesa = Number(data['numeroMesa'] || 1);
+            const estadoGlobal = data['estado'] || 'solicitado';
+            const items = data['items'] || [];
+            const totalDoc = data['total'] || 0;
+            const mozoEnBD = data['mozoAsignado'] || null;
+
+            if (estadoGlobal === 'pagado') return;
+
+            let mesaEncontrada = this.mesasSalon.find(m => m.numeroMesa === numMesa);
+            if (!mesaEncontrada) {
+              mesaEncontrada = {
+                numeroMesa: numMesa,
+                mozoAsignado: mozoEnBD,
+                estadoMesa: 'libre',
+                itemsEnMesa: [],
+                totalMesa: 0
+              };
+              this.mesasSalon.push(mesaEncontrada);
+            }
+
+            if (mozoEnBD) {
+              mesaEncontrada.mozoAsignado = mozoEnBD;
+            }
+
+            mesaEncontrada.totalMesa += totalDoc;
+
+            items.forEach((item: any) => {
+              mesaEncontrada!.itemsEnMesa.push({
+                idDocumentoPedido: docSnap.id,
+                nombre: item.nombre,
+                cantidad: item.cantidad,
+                precioSeleccionado: item.precioSeleccionado,
+                estado: item.estado || estadoGlobal,
+                destino: item.destino || data['destino'] || 'cocina',
+                tamanioSeleccionado: item.tamanioSeleccionado,
+                nivelPicante: item.nivelPicante,
+                observacion: item.observacion
+              });
+            });
+          });
+
+          this.cdr.detectChanges();
+        });
+      } catch (err) {
+        console.error('Error escuchando pedidos en salón:', err);
+      }
+    });
+  }
+
+  async tomarMesa(mesa: MesaSalon): Promise<void> {
+    try {
+      if (!mesa.itemsEnMesa || mesa.itemsEnMesa.length === 0) return;
+
+      const promesas = mesa.itemsEnMesa.map(item => {
+        const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
+        return updateDoc(pedidoRef, {
+          mozoAsignado: this.nombreMozoActual
+        });
+      });
+
+      await Promise.all(promesas);
+
+      mesa.mozoAsignado = this.nombreMozoActual;
+      mesa.estadoMesa = 'atendiendo';
+      this.filtroMozoTab = 'mis-mesas';
+      this.cdr.detectChanges();
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Mesa Asignada!',
+        text: `Ahora te haces cargo de la Mesa N° ${mesa.numeroMesa}.`,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#3b82f6'
+      });
+
+    } catch (error) {
+      console.error('Error al tomar mesa:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo asignar la mesa en Firestore.',
+        confirmButtonText: 'OK'
+      });
     }
-  ];
+  }
 
-  ngOnInit(): void {}
+  verDetallePedido(mesa: MesaSalon): void {
+    const headerHtml = `
+      <div style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 0; margin: 0;">
+        ${this.restaurantIconUrl ? 
+          `<img src="${this.restaurantIconUrl}" alt="Logo Local" style="width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" />` : 
+          `<div style="width: 52px; height: 52px; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0;">Logo</div>`
+        }
+        <h2 style="margin: 0; font-family: 'Times New Roman', Times, serif; font-size: 1.5rem; color: #38bdf8; font-weight: 400; text-align: left; line-height: 1.1;">Detalle - Mesa Nº ${mesa.numeroMesa}</h2>
+      </div>
+    `;
 
-  // Getter que filtra las mesas según la pestaña seleccionada en la barra horizontal
+    // let htmlLista = '<div style="text-align: left; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-right: 4px;">';
+    let htmlLista = '<div id="lista-items-modal" style="text-align: left; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-right: 4px;">';
+
+    mesa.itemsEnMesa.forEach((item, index) => {
+      const colorEstado = item.estado === 'listo' ? '#10b981' : item.estado === 'preparando' ? '#f59e0b' : item.estado === 'entregado' ? '#8b5cf6' : '#3b82f6';
+      
+      const esCocina = item.destino === 'cocina';
+      const textoDestino = esCocina ? 'Cocina' : 'Bebida';
+      const colorBadgeBg = esCocina ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
+      const colorBadgeText = esCocina ? '#38bdf8' : '#fbbf24';
+
+      const textoEstadoPlato = item.estado === 'solicitado' ? '⏳ En cola' : 
+                               item.estado === 'preparando' ? '🔥 En fuego' : 
+                               item.estado === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado';
+
+      // REGLA ESTRICTA: El botón SOLO aparece si la mesa YA tiene mozo asignado Y el ítem NO está entregado
+      const tieneMozoAsignado = !!mesa.mozoAsignado;
+      const mostrarBotonEntrega = tieneMozoAsignado && item.estado !== 'entregado';
+
+      htmlLista += `
+        <div style="background: #1e293b; padding: 8px 10px; border-radius: 6px; border-left: 4px solid ${colorEstado}; color: #f8fafc; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+          
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+            <div style="font-size: 0.9rem; font-weight: bold;">${item.cantidad}x ${item.nombre}</div>
+            ${item.tamanioSeleccionado ? `<div style="font-size: 0.72rem; color: #38bdf8; font-weight: bold;">(${item.tamanioSeleccionado.toUpperCase()})</div>` : ''}
+            ${item.nivelPicante ? `<div style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">🌶️ Ají: ${item.nivelPicante.toUpperCase()}</div>` : ''}
+            ${item.observacion ? `<div style="font-size: 0.7rem; color: #c084fc; font-style: italic;">📝 ${item.observacion}</div>` : ''}
+            <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">Estado: <strong style="color: #38bdf8;">${textoEstadoPlato}</strong></div>
+            
+            ${mostrarBotonEntrega ? `
+              <button id="btn-entregar-item-${index}" style="margin-top: 4px; background: #059669; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer;">
+                🏃‍♂️ Marcar Entregado
+              </button>` : ''}
+          </div>
+
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;">
+            <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: ${colorBadgeBg}; color: ${colorBadgeText}; display: flex; align-items: center; gap: 3px; font-weight: bold;">
+              <span style="width: 4px; height: 4px; background: ${colorBadgeText}; border-radius: 50%;"></span>
+              ${textoDestino}
+            </span>
+            <div style="font-size: 0.8rem; color: #34d399; font-weight: bold;">
+              S/ ${(item.precioSeleccionado * item.cantidad).toFixed(2)}
+            </div>
+          </div>
+
+        </div>
+      `;
+    });
+    htmlLista += '</div>';
+
+    const footerHtml = `
+      <div style="width: 100%; padding-top: 6px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center; color: #34d399; font-weight: bold; font-size: 1rem; padding: 0 4px;">
+          <span>Total estimado:</span>
+          <span style="font-size: 1.1rem;">S/ ${mesa.totalMesa.toFixed(2)}</span>
+        </div>
+      </div>
+    `;
+
+    Swal.fire({
+      title: headerHtml,
+      html: htmlLista,
+      footer: footerHtml,
+      showConfirmButton: true,
+      confirmButtonText: 'Cerrar',
+      confirmButtonColor: '#3b82f6',
+      width: '440px',
+      background: '#0f172a',
+      color: '#fff',
+      padding: '12px 15px',
+      customClass: {
+        popup: 'modal-custom-mozo-identico',
+        confirmButton: 'btn-cerrar-identico'
+      },
+      didOpen: () => {
+        mesa.itemsEnMesa.forEach((item, index) => {
+          const btn = document.getElementById(`btn-entregar-item-${index}`);
+          if (btn) {
+            btn.addEventListener('click', () => {
+              this.entregarItemDesdeModal(mesa, item, index);
+            });
+          }
+        });
+      }
+    });
+  }
+
+  // async entregarItemDesdeModal(mesa: MesaSalon, item: ItemMesaMozo): Promise<void> {
+  //   try {
+  //     const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
+      
+  //     // Actualizamos el estado del ítem individual o del documento en Firestore
+  //     await updateDoc(pedidoRef, {
+  //       estado: 'entregado'
+  //     });
+
+  //     // Actualizamos localmente el estado del ítem
+  //     item.estado = 'entregado';
+
+  //     // ⚠️ SOLUCIÓN CLAVE: En lugar de cerrar y abrir otro Swal que bota al usuario, 
+  //     // actualizamos el contenido del DOM del modal actual de SweetAlert al vuelo:
+  //     const container = Swal.getHtmlContainer();
+  //     if (container) {
+  //       // Volvemos a generar el detalle y lo inyectamos sin cerrar la ventana
+  //       this.verDetallePedido(mesa);
+  //     }
+
+  //     // Toast elegante flotante de 3 segundos para confirmar la entrega sin estorbar
+  //     const Toast = Swal.mixin({
+  //       toast: true,
+  //       position: 'top-end',
+  //       showConfirmButton: false,
+  //       timer: 3000,
+  //       timerProgressBar: true,
+  //       background: '#0f172a',
+  //       color: '#38bdf8'
+  //     });
+  //     Toast.fire({
+  //       icon: 'success',
+  //       title: `¡${item.nombre} marcado como entregado!`
+  //     });
+
+  //   } catch (error) {
+  //     console.error('Error al entregar item desde modal:', error);
+  //     Swal.fire({
+  //       icon: 'error',
+  //       title: 'Error',
+  //       text: 'No se pudo actualizar el estado.',
+  //       confirmButtonText: 'OK'
+  //     });
+  //   }
+  // }
+
+  async entregarItemDesdeModal(mesa: MesaSalon, item: ItemMesaMozo, indexBtn: number): Promise<void> {
+    try {
+      const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
+      
+      // Actualizamos en Firebase
+      await updateDoc(pedidoRef, {
+        estado: 'entregado'
+      });
+
+      // Actualizamos localmente el estado del ítem
+      item.estado = 'entregado';
+
+      // ⚠️ SOLUCIÓN DIRECTA AL DOM: En lugar de recrear el Swal (lo que te botaba al listado),
+      // actualizamos el texto de estado y ocultamos el botón específico al instante en la pantalla:
+      const btnElement = document.getElementById(`btn-entregar-item-${indexBtn}`);
+      if (btnElement) {
+        btnElement.style.display = 'none'; // Oculta el botón de inmediato
+      }
+
+      // Buscamos el contenedor del texto de estado de este ítem y lo actualizamos en vivo
+      // (Opcional pero asegura que el usuario vea el cambio sin cerrar el modal)
+      const container = Swal.getHtmlContainer();
+      if (container) {
+        // Actualizamos los datos en vivo manteniendo el modal abierto
+        // O más seguro aún: reconstruimos la lista HTML interna sin cerrar el popup principal:
+        const htmlListaDiv = container.querySelector('#lista-items-modal');
+        if (htmlListaDiv) {
+          // Generamos de nuevo el HTML interno de la lista con el estado actualizado
+          let nuevoHtml = '';
+          mesa.itemsEnMesa.forEach((it, idx) => {
+            const colorEstado = it.estado === 'listo' ? '#10b981' : it.estado === 'preparando' ? '#f59e0b' : it.estado === 'entregado' ? '#8b5cf6' : '#3b82f6';
+            const esCocina = it.destino === 'cocina';
+            const textoDestino = esCocina ? 'Cocina' : 'Bebida';
+            const colorBadgeBg = esCocina ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
+            const colorBadgeText = esCocina ? '#38bdf8' : '#fbbf24';
+            const textoEstadoPlato = it.estado === 'solicitado' ? '⏳ En cola' : 
+                                     it.estado === 'preparando' ? '🔥 En fuego' : 
+                                     it.estado === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado';
+
+            const tieneMozoAsignado = !!mesa.mozoAsignado;
+            const mostrarBotonEntrega = tieneMozoAsignado && it.estado !== 'entregado';
+
+            nuevoHtml += `
+              <div style="background: #1e293b; padding: 8px 10px; border-radius: 6px; border-left: 4px solid ${colorEstado}; color: #f8fafc; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+                  <div style="font-size: 0.9rem; font-weight: bold;">${it.cantidad}x ${it.nombre}</div>
+                  ${it.tamanioSeleccionado ? `<div style="font-size: 0.72rem; color: #38bdf8; font-weight: bold;">(${it.tamanioSeleccionado.toUpperCase()})</div>` : ''}
+                  ${it.nivelPicante ? `<div style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">🌶️ Ají: ${it.nivelPicante.toUpperCase()}</div>` : ''}
+                  ${it.observacion ? `<div style="font-size: 0.7rem; color: #c084fc; font-style: italic;">📝 ${it.observacion}</div>` : ''}
+                  <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">Estado: <strong style="color: #38bdf8;">${textoEstadoPlato}</strong></div>
+                  
+                  ${mostrarBotonEntrega ? `
+                    <button id="btn-entregar-item-${idx}" class="btn-accion-item-modal" data-index="${idx}" style="margin-top: 4px; background: #059669; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer;">
+                      🏃‍♂️ Marcar Entregado
+                    </button>` : ''}
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;">
+                  <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: ${colorBadgeBg}; color: ${colorBadgeText}; display: flex; align-items: center; gap: 3px; font-weight: bold;">
+                    <span style="width: 4px; height: 4px; background: ${colorBadgeText}; border-radius: 50%;"></span>
+                    ${textoDestino}
+                  </span>
+                  <div style="font-size: 0.8rem; color: #34d399; font-weight: bold;">
+                    S/ ${(it.precioSeleccionado * it.cantidad).toFixed(2)}
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          htmlListaDiv.innerHTML = nuevoHtml;
+
+          // Reasignamos los eventos a los nuevos botones generados dentro del modal
+          mesa.itemsEnMesa.forEach((it, idx) => {
+            const nuevoBtn = document.getElementById(`btn-entregar-item-${idx}`);
+            if (nuevoBtn) {
+              nuevoBtn.addEventListener('click', () => {
+                this.entregarItemDesdeModal(mesa, it, idx);
+              });
+            }
+          });
+        }
+      }
+
+      // Toast elegante sin interrumpir
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        background: '#0f172a',
+        color: '#38bdf8'
+      });
+      Toast.fire({
+        icon: 'success',
+        title: `¡${item.nombre} marcado como entregado!`
+      });
+
+    } catch (error) {
+      console.error('Error al entregar item desde modal:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo actualizar el estado.',
+        confirmButtonText: 'OK'
+      });
+    }
+  }
+
   get mesasFiltradas(): MesaSalon[] {
-    if (this.filtroMozoTab === 'libres') {
-      return this.mesasSalon.filter(m => !m.mozoAsignado);
+    if (this.filtroMozoTab === 'alertas') {
+      return this.mesasSalon.filter(m => !m.mozoAsignado && m.itemsEnMesa.length > 0 && m.itemsEnMesa.some(i => i.estado !== 'entregado'));
     } else if (this.filtroMozoTab === 'mis-mesas') {
-      return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual);
+      return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual && m.itemsEnMesa.length > 0);
     } else if (this.filtroMozoTab === 'colegas') {
-      return this.mesasSalon.filter(m => m.mozoAsignado && m.mozoAsignado !== this.nombreMozoActual);
-    } else if (this.filtroMozoTab === 'alertas') {
-      return this.mesasSalon.filter(m => m.estadoMesa === 'llamando');
+      return this.mesasSalon.filter(m => m.mozoAsignado && m.mozoAsignado !== this.nombreMozoActual && m.itemsEnMesa.length > 0);
+    } else if (this.filtroMozoTab === 'libres') {
+      return this.mesasSalon.filter(m => m.itemsEnMesa.length === 0 || m.itemsEnMesa.every(i => i.estado === 'entregado'));
     }
     return this.mesasSalon;
   }
 
-  // Contadores dinámicos para los badges de las pestañas
   contarTab(tipo: string): number {
-    if (tipo === 'libres') return this.mesasSalon.filter(m => !m.mozoAsignado).length;
-    if (tipo === 'mis-mesas') return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual).length;
-    if (tipo === 'colegas') return this.mesasSalon.filter(m => m.mozoAsignado && m.mozoAsignado !== this.nombreMozoActual).length;
-    if (tipo === 'alertas') return this.mesasSalon.filter(m => m.estadoMesa === 'llamando').length;
+    if (tipo === 'alertas') return this.mesasSalon.filter(m => !m.mozoAsignado && m.itemsEnMesa.length > 0 && m.itemsEnMesa.some(i => i.estado !== 'entregado')).length;
+    if (tipo === 'mis-mesas') return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual && m.itemsEnMesa.length > 0).length;
+    if (tipo === 'colegas') return this.mesasSalon.filter(m => m.mozoAsignado && m.mozoAsignado !== this.nombreMozoActual && m.itemsEnMesa.length > 0).length;
+    if (tipo === 'libres') return this.mesasSalon.filter(m => m.itemsEnMesa.length === 0 || m.itemsEnMesa.every(i => i.estado === 'entregado')).length;
     return 0;
   }
 
-  tomarMesa(mesa: MesaSalon): void {
-    mesa.mozoAsignado = this.nombreMozoActual;
-    mesa.estadoMesa = 'atendiendo';
+  async entregarItem(mesa: MesaSalon, item: ItemMesaMozo): Promise<void> {
+    try {
+      const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
+      await updateDoc(pedidoRef, {
+        estado: 'entregado'
+      });
 
-    this.cdr.detectChanges();
-
-    Swal.fire({
-      icon: 'success',
-      title: '¡Mesa Asignada!',
-      text: `Ahora te haces cargo de la Mesa N° ${mesa.numeroMesa}.`,
-      confirmButtonText: 'Aceptar',
-      confirmButtonColor: '#3b82f6',
-      allowOutsideClick: false
-    });
+      Swal.fire({
+        icon: 'success',
+        title: '¡Entregado en Mesa!',
+        text: `Serviste ${item.cantidad}x ${item.nombre} en la Mesa N° ${mesa.numeroMesa}.`,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#10b981'
+      });
+    } catch (error) {
+      console.error('Error al entregar item:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo actualizar el estado.',
+        confirmButtonText: 'OK'
+      });
+    }
   }
 
-  atenderLlamado(mesa: MesaSalon): void {
-    mesa.estadoMesa = 'atendiendo';
-    mesa.llamadaMotivo = undefined;
-
-    this.cdr.detectChanges();
-
-    Swal.fire({
-      icon: 'info',
-      title: '¡Llamado Atendido!',
-      text: `Acudiste al llamado de la Mesa N° ${mesa.numeroMesa}.`,
-      confirmButtonText: 'Aceptar',
-      confirmButtonColor: '#10b981',
-      allowOutsideClick: false
+  async cobrarMesa(mesa: MesaSalon): Promise<void> {
+    const confirm = await Swal.fire({
+      title: `¿Cobrar Mesa N° ${mesa.numeroMesa}?`,
+      text: `El total a cancelar es S/ ${mesa.totalMesa.toFixed(2)}. Esto cerrará la cuenta.`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, ¡Cobrar y Cerrar!',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#10b981'
     });
-  }
 
-  entregarPlato(mesa: MesaSalon, plato: any): void {
-    Swal.fire({
-      icon: 'success',
-      title: '¡Plato Entregado!',
-      text: `Confirmaste la entrega de ${plato.cantidad}x ${plato.nombre} en la Mesa N° ${mesa.numeroMesa}.`,
-      confirmButtonText: 'Aceptar',
-      confirmButtonColor: '#10b981',
-      allowOutsideClick: false
-    });
-  }
+    if (!confirm.isConfirmed) return;
 
-  marcarBebidaAtendida(mesa: MesaSalon, index: number): void {
-    Swal.fire({
-      icon: 'success',
-      title: '¡Bebida / Extra Despachado!',
-      text: `El pedido de la Mesa N° ${mesa.numeroMesa} fue entregado con éxito.`,
-      confirmButtonText: 'Aceptar',
-      confirmButtonColor: '#3b82f6',
-      allowOutsideClick: false
-    });
-    mesa.pedidosBebidasExtras.splice(index, 1);
-    this.cdr.detectChanges();
+    try {
+      const promesas = mesa.itemsEnMesa.map(i => {
+        const ref = doc(this.firestore, 'pedidos', i.idDocumentoPedido);
+        return updateDoc(ref, { estado: 'pagado' });
+      });
+
+      await Promise.all(promesas);
+
+      mesa.mozoAsignado = null;
+      mesa.estadoMesa = 'libre';
+      mesa.itemsEnMesa = [];
+      mesa.totalMesa = 0;
+
+      this.cdr.detectChanges();
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Mesa Cobrada con Éxito!',
+        text: 'La cuenta ha sido cancelada y la mesa se encuentra libre nuevamente.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#10b981'
+      });
+
+    } catch (err) {
+      console.error('Error al cobrar mesa:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'No se pudo procesar el cobro.',
+        confirmButtonText: 'OK'
+      });
+    }
   }
 }

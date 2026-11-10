@@ -1,29 +1,41 @@
-import { Component, OnInit, inject, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
+import { 
+  Firestore, 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  doc, 
+  updateDoc,
+  QuerySnapshot,
+  DocumentData 
+} from '@angular/fire/firestore';
+import { Subscription } from 'rxjs';
 
 interface ItemComanda {
   nombre: string;
   cantidad: number;
+  precioSeleccionado: number;
+  categoria?: string;
+  tamanioSeleccionado?: string; 
+  nivelPicante?: string; 
+  observacion?: string;  
 }
 
 export interface ComandaCocina {
-  idComanda: string;
-  numeroMesa: number;
+  idComanda: string; // Usaremos el ID del primer documento o lo manejaremos consolidado
+  idsOriginales: string[]; // 👈 Guardamos todos los IDs de los sub-pedidos de esta mesa para actualizarlos juntos
+  numeroMesa: number | string;
   items: ItemComanda[];
   estado: 'solicitado' | 'preparando' | 'listo';
   horaPedido: string;
   cocineroAsignado?: string;
+  cocineroSeleccionadoTemporal?: Cocinero;
   timestamp?: number;
-}
-
-interface DetallePlatoPreparado {
-  nombrePlato: string;
-  cantidad: number;
-  numeroMesa: number;
-  horaPreparado: string;
 }
 
 interface Cocinero {
@@ -31,7 +43,7 @@ interface Cocinero {
   nombre: string;
   platosEnCurso: number;
   platosPreparadosHoy: number;
-  historialPlatos: DetallePlatoPreparado[];
+  historialPlatos: any[];
 }
 
 @Component({
@@ -41,144 +53,166 @@ interface Cocinero {
   templateUrl: './cocina-comandas.html',
   styleUrl: './cocina-comandas.css'
 })
-export class CocinaComandas implements OnInit {
+export class CocinaComandas implements OnInit, OnDestroy {
   private router = inject(Router);
   private cdr = inject(ChangeDetectorRef);
+  private firestore = inject(Firestore);
 
-  // Filtro activo para las pestañas horizontales ('todos' | 'solicitado' | 'preparando' | 'listo')
+  private subComandas?: Subscription;
+  private subCocineros?: Subscription;
+
   filtroEstado: 'todos' | 'solicitado' | 'preparando' | 'listo' = 'solicitado';
 
-  cocineros: Cocinero[] = [
-    { 
-      id: 'c1', 
-      nombre: 'Cocinero Carlos', 
-      platosEnCurso: 0, 
-      platosPreparadosHoy: 2,
-      historialPlatos: [
-        { nombrePlato: 'Ceviche Mixto Tradicional', cantidad: 2, numeroMesa: 1, horaPreparado: '12:35 PM' },
-        { nombrePlato: 'Arroz con Mariscos', cantidad: 1, numeroMesa: 1, horaPreparado: '12:40 PM' }
-      ]
-    },
-    { 
-      id: 'c2', 
-      nombre: 'Cocinero Mateo', 
-      platosEnCurso: 1, 
-      platosPreparadosHoy: 1,
-      historialPlatos: [
-        { nombrePlato: 'Parihuela Especial', cantidad: 1, numeroMesa: 4, horaPreparado: '12:15 PM' }
-      ]
-    },
-    { 
-      id: 'c3', 
-      nombre: 'Cocinero Luis', 
-      platosEnCurso: 0, 
-      platosPreparadosHoy: 0,
-      historialPlatos: []
-    }
-  ];
-
+  cocineros: Cocinero[] = [];
   comandasCola: ComandaCocina[] = [];
 
   ngOnInit(): void {
-    this.cargarComandasPrueba();
+    this.escucharCocinerosEnVivo();
+    this.escucharComandasEnVivo();
   }
 
-  cargarComandasPrueba(): void {
-    this.comandasCola = [
-      {
-        idComanda: 'CMD-101',
-        numeroMesa: 2,
-        items: [
-          { nombre: 'Chicharrón de Calamar', cantidad: 1 },
-          { nombre: 'Arroz con Pato Norteño', cantidad: 2 }
-        ],
-        estado: 'solicitado',
-        horaPedido: '12:50 PM',
-        timestamp: 1
-      },
-      {
-        idComanda: 'CMD-102',
-        numeroMesa: 4,
-        items: [
-          { nombre: 'Seco de Cabrito', cantidad: 1 }
-        ],
-        estado: 'preparando',
-        horaPedido: '12:55 PM',
-        cocineroAsignado: 'Cocinero Mateo',
-        timestamp: 2
+  ngOnDestroy(): void {
+    if (this.subComandas) this.subComandas.unsubscribe();
+    if (this.subCocineros) this.subCocineros.unsubscribe();
+  }
+
+  escucharCocinerosEnVivo(): void {
+    const usuariosRef = collection(this.firestore, 'usuarios');
+    const qCocineros = query(usuariosRef, where('rol', '==', 'cocina'));
+    
+    this.subCocineros = new Subscription();
+    const unsubscribe = onSnapshot(qCocineros, (snapshot: QuerySnapshot<DocumentData>) => {
+      this.cocineros = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          nombre: data['nombre'] || 'Cocinero',
+          platosEnCurso: 0,
+          platosPreparadosHoy: data['platosPreparadosHoy'] || 0,
+          historialPlatos: data['historialPlatos'] || []
+        };
+      }) as Cocinero[];
+
+      this.actualizarMetricasCocineros();
+      this.cdr.detectChanges();
+    });
+
+    this.subCocineros.add(() => unsubscribe());
+  }
+
+  escucharComandasEnVivo(): void {
+    const pedidosRef = collection(this.firestore, 'pedidos');
+    const q = query(pedidosRef, where('destino', '==', 'cocina'));
+    
+    this.subComandas = new Subscription();
+    const unsubscribe = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+      // Cada documento es un ticket independiente en la cola de cocina
+      this.comandasCola = snapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          idComanda: docSnap.id,
+          numeroMesa: data['numeroMesa'] || '1',
+          items: data['items'] || [],
+          estado: data['estado'] || 'solicitado',
+          horaPedido: data['fechaCreacion'] ? new Date(data['fechaCreacion']).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '12:00 PM',
+          cocineroAsignado: data['cocineroAsignado'],
+          timestamp: data['fechaCreacion'] ? new Date(data['fechaCreacion']).getTime() : 1
+        };
+      }) as ComandaCocina[];
+
+      this.actualizarMetricasCocineros();
+      this.cdr.detectChanges();
+    });
+
+    this.subComandas.add(() => unsubscribe());
+  }
+
+  actualizarMetricasCocineros(): void {
+    if (!this.cocineros.length) return;
+    this.cocineros.forEach(c => c.platosEnCurso = 0);
+
+    this.comandasCola.forEach(cmd => {
+      if (cmd.estado === 'preparando' && cmd.cocineroAsignado) {
+        const cocinero = this.cocineros.find(c => c.nombre === cmd.cocineroAsignado);
+        if (cocinero) {
+          const totalItems = cmd.items ? cmd.items.reduce((sum, item) => sum + item.cantidad, 0) : 0;
+          cocinero.platosEnCurso += totalItems;
+        }
       }
-    ];
+    });
   }
 
-  // Getter para filtrar las comandas según la pestaña seleccionada en la barra horizontal
   get comandasFiltradas(): ComandaCocina[] {
     let lista = [...this.comandasCola];
     if (this.filtroEstado !== 'todos') {
       lista = lista.filter(c => c.estado === this.filtroEstado);
     }
-    // Ordenamos por timestamp (FIFO)
     return lista.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
   }
 
-  // Contadores para las burbujas de la barra horizontal
   contarEstado(estado: string): number {
     return this.comandasCola.filter(c => c.estado === estado).length;
   }
 
-  iniciarPreparacion(comanda: ComandaCocina, cocinero: Cocinero): void {
-    comanda.estado = 'preparando';
-    comanda.cocineroAsignado = cocinero.nombre;
-    cocinero.platosEnCurso++;
-
-    this.cdr.detectChanges();
-    
-    Swal.fire({
-      icon: 'info',
-      title: '¡Comanda Tomada!',
-      text: `${cocinero.nombre} sumó la Mesa N° ${comanda.numeroMesa} a sus preparaciones.`,
-      confirmButtonText: 'Aceptar',
-      confirmButtonColor: '#3b82f6',
-      allowOutsideClick: false
-    });
-  }
-
-  marcarListo(comanda: ComandaCocina): void {
-    comanda.estado = 'listo';
-
-    if (comanda.cocineroAsignado) {
-      const cocinero = this.cocineros.find(c => c.nombre === comanda.cocineroAsignado);
-      if (cocinero) {
-        if (cocinero.platosEnCurso > 0) {
-          cocinero.platosEnCurso--;
-        }
-        cocinero.platosPreparadosHoy++;
-
-        const horaActual = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        comanda.items.forEach(it => {
-          cocinero.historialPlatos.push({
-            nombrePlato: it.nombre,
-            cantidad: it.cantidad,
-            numeroMesa: comanda.numeroMesa,
-            horaPreparado: horaActual
-          });
-        });
-      }
+  async iniciarPreparacion(comanda: ComandaCocina): Promise<void> {
+    if (!comanda.cocineroSeleccionadoTemporal) {
+      Swal.fire({
+        icon: 'warning',
+        title: '¡Falta el cocinero!',
+        text: 'Debes seleccionar un cocinero del menú desplegable.',
+        confirmButtonText: 'Entendido',
+        confirmButtonColor: '#f59e0b'
+      });
+      return;
     }
 
-    this.cdr.detectChanges();
+    const cocineroElegido = comanda.cocineroSeleccionadoTemporal;
 
-    Swal.fire({
-      icon: 'success',
-      title: '¡Plato Listo en Barra!',
-      text: `Se notificó al mozo para la Mesa N° ${comanda.numeroMesa}.`,
-      confirmButtonText: 'Aceptar',
-      confirmButtonColor: '#10b981',
-      allowOutsideClick: false
-    });
+    try {
+      // Como cada tarjeta es un pedido independiente, actualizamos directo su idComanda
+      const pedidoDocRef = doc(this.firestore, 'pedidos', comanda.idComanda);
+      
+      await updateDoc(pedidoDocRef, {
+        estado: 'preparando',
+        cocineroAsignado: cocineroElegido.nombre
+      });
+
+      Swal.fire({
+        icon: 'info',
+        title: '¡Comanda Tomada!',
+        text: `${cocineroElegido.nombre} asumió la preparación de la Mesa N° ${comanda.numeroMesa}.`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al tomar comanda:', error);
+      Swal.fire('Error', 'No se pudo actualizar el estado.', 'error');
+    }
+  }
+
+  async marcarListo(comanda: ComandaCocina): Promise<void> {
+    try {
+      // Como cada tarjeta es un pedido independiente, actualizamos directo su idComanda
+      const ref = doc(this.firestore, 'pedidos', comanda.idComanda);
+      await updateDoc(ref, {
+        estado: 'listo'
+      });
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Plato Listo en Barra!',
+        text: `Se notificó al mozo para la Mesa N° ${comanda.numeroMesa}.`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Error al marcar listo:', error);
+      Swal.fire('Error', 'No se pudo actualizar el estado.', 'error');
+    }
   }
 
   verDetalleCocinero(cocinero: Cocinero): void {
-    if (cocinero.historialPlatos.length === 0) {
+    if (!cocinero.historialPlatos || cocinero.historialPlatos.length === 0) {
       Swal.fire({
         icon: 'info',
         title: cocinero.nombre,
