@@ -1,20 +1,18 @@
 <div class="mozo-container">
   
-  <!-- ZONA SUPERIOR FIJA: Header y Barra Horizontal de Pestañas -->
   <div class="header-fijo-mozo">
     <header class="header-mozo">
       <div class="mozo-info-user" style="display: flex; align-items: center; gap: 10px;">
         <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo Local" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; background: #1e293b;" />
         
         <div>
-          <h1>Control de Mozo</h1>
+          <h1 style="font-size: 0.95rem; margin: 0; color: #38bdf8; font-weight: 800;">Control de Mozo</h1>
           <span class="badge-mozo">👤 {{ nombreMozoActual }}</span>
         </div>
       </div>
       <span class="badge-estado-vivo">🟢 En Línea</span>
     </header>
 
-    <!-- BARRA HORIZONTAL DE NAVEGACIÓN (TABS) -->
     <nav class="tabs-horizontal">
       <button 
         class="tab-btn alerta-tab" 
@@ -48,7 +46,6 @@
 
   <main class="contenido-mozo">
     
-    <!-- LISTA DE MESAS FILTRADAS EN 2 COLUMNAS -->
     <div class="lista-mesas-mozo">
       <div *ngFor="let mesa of mesasFiltradas" class="card-mesa-mozo" [ngClass]="{'mia': mesa.mozoAsignado === nombreMozoActual && mesa.itemsEnMesa.length > 0, 'alerta-card': !mesa.mozoAsignado && mesa.itemsEnMesa.length > 0, 'ajena': mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual}">
         
@@ -61,7 +58,6 @@
 
         <div class="card-mesa-body">
           
-          <!-- SI LA MESA ESTÁ PIDIENDO ATENCIÓN -->
           <div *ngIf="!mesa.mozoAsignado && mesa.itemsEnMesa.length > 0" class="bloque-alerta-compacto">
             <div class="alerta-info-row">
               <span class="txt-alerta-info">⚠️ Pedido en espera (<strong>{{ mesa.itemsEnMesa.length }} items</strong>)</span>
@@ -78,7 +74,6 @@
             </div>
           </div>
 
-          <!-- SI LA MESA YA TIENE MOZO ASIGNADO -->
           <div *ngIf="mesa.itemsEnMesa.length > 0 && mesa.mozoAsignado" class="bloque-mesa-activo">
             
             <div class="header-bloque-mesa">
@@ -108,7 +103,6 @@
 
           </div>
 
-          <!-- SI LA MESA NO TIENE PEDIDOS -->
           <div *ngIf="mesa.itemsEnMesa.length === 0" class="bloque-libre-accion">
             <p class="txt-libre-info">Mesa libre sin consumos pendientes.</p>
           </div>

@@ -42,7 +42,8 @@ export class ClienteMenu implements OnInit {
   restaurantId: string = 'moscu';
   productos: Producto[] = [];
   categoriaSeleccionada: string = 'todos';
-  filtroEstadoModal: string = 'todos';
+  
+  filtroEstadoModal: string = 'solicitado';
   
   carrito: ItemCarritoCliente[] = [];
   itemsPedidoEnviado: ItemPedidoEnviado[] = [];
@@ -73,7 +74,6 @@ export class ClienteMenu implements OnInit {
 
   abrirResumenMesa(): void {
     this.mostrarModalCarrito = true;
-    // Seteamos el valor de inmediato para evitar que parpadee en cero
     this.granTotalMesaVisual = 0;
     setTimeout(() => {
       this.iniciarAnimacionTotal(this.granTotalMesa);
@@ -116,13 +116,12 @@ export class ClienteMenu implements OnInit {
             const data = docSnap.data();
             const items = data['items'] || [];
             const destino = data['destino'] || 'cocina';
-            const estadoGlobal = data['estado'] || 'solicitado'; // 'solicitado', 'preparando', 'listo'
+            const estadoGlobal = data['estado'] || 'solicitado';
 
             items.forEach((item: any) => {
               listaHistorial.push({
                 ...item,
-                // Forzamos a que si el documento global cambió, el ítem tome ese estado al vuelo
-                estadoItem: estadoGlobal === 'solicitado' ? (item.estadoItem || 'solicitado') : estadoGlobal,
+                estadoItem: item.estadoItem || estadoGlobal,
                 destino: destino
               });
             });
@@ -151,13 +150,15 @@ export class ClienteMenu implements OnInit {
         item.estadoItem === 'solicitado' || item.estadoItem === 'pendiente_despacho'
       );
     }
-    // 👈 AQUÍ ESTABA EL ERROR: Cambiamos 'en_preparacion' por 'preparando' para que coincida con la cocina
     if (estado === 'preparando') {
       return this.itemsPedidoEnviado.filter(item => item.estadoItem === 'preparando');
     }
+    if (estado === 'listo') {
+      return this.itemsPedidoEnviado.filter(item => item.estadoItem === 'listo');
+    }
     if (estado === 'entregado') {
       return this.itemsPedidoEnviado.filter(item => 
-        item.estadoItem === 'entregado' || item.estadoItem === 'servido' || item.estadoItem === 'despachado' || item.estadoItem === 'listo'
+        item.estadoItem === 'entregado' || item.estadoItem === 'servido' || item.estadoItem === 'despachado'
       );
     }
     return this.itemsPedidoEnviado.filter(item => item.estadoItem === estado);
@@ -171,9 +172,6 @@ export class ClienteMenu implements OnInit {
   }
 
   get itemsFiltradosModal(): ItemPedidoEnviado[] {
-    if (this.filtroEstadoModal === 'todos') {
-      return this.itemsPedidoEnviado;
-    }
     return this.obtenerItemsPorEstado(this.filtroEstadoModal);
   }
 
@@ -208,7 +206,7 @@ export class ClienteMenu implements OnInit {
   agregarAlCarritoConOpciones(): void {
     if (!this.productoSeleccionado) return;
 
-    const precioFinal = this.calcularPrecioActualModal();
+    const precioUnitario = this.calcularPrecioActualModal();
     const tamanio = this.productoSeleccionado.tienePorciones ? this.tamanioSeleccionado : undefined;
     const picante = this.productoSeleccionado.categoria !== 'bebidas' ? this.nivelPicanteSeleccionado : undefined;
     const obs = this.observacionItem.trim() || undefined;
@@ -228,7 +226,7 @@ export class ClienteMenu implements OnInit {
         nombre: this.productoSeleccionado.nombre,
         categoria: this.productoSeleccionado.categoria,
         tamanioSeleccionado: tamanio,
-        precioSeleccionado: precioFinal,
+        precioSeleccionado: precioUnitario,
         nivelPicante: picante,
         observacion: obs,
         cantidad: 1
@@ -236,7 +234,8 @@ export class ClienteMenu implements OnInit {
     }
 
     this.cerrarModalOpciones();
-    
+    this.iniciarAnimacionTotal(this.granTotalMesa);
+
     Swal.fire({
       icon: 'success',
       title: '¡Agregado al carrito!',
@@ -250,11 +249,13 @@ export class ClienteMenu implements OnInit {
     if (this.carrito[index].cantidad <= 0) {
       this.carrito.splice(index, 1);
     }
+    this.iniciarAnimacionTotal(this.granTotalMesa);
     this.cdr.detectChanges();
   }
 
   removerItemCarrito(index: number): void {
     this.carrito.splice(index, 1);
+    this.iniciarAnimacionTotal(this.granTotalMesa);
     this.cdr.detectChanges();
   }
 

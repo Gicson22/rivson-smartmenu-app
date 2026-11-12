@@ -16,41 +16,44 @@ export const authGuard: CanActivateFn = (route, state): boolean | UrlTree => {
     const rolUsuario = sesion.rol; // 'super', 'dueña', 'mozo', 'cocina', 'caja', 'guardia'
     const rutaActual = state.url;
 
-    // 1. Super Admin (Solo rol 'super')
+    let autorizado = true;
+
+    // 1. Super Admin
     if (rutaActual.includes('/admin/super') && rolUsuario !== 'super') {
-      return router.createUrlTree(['/login']);
+      autorizado = false;
+    }
+    // 2. Gerencia / Dueña
+    else if (rutaActual.includes('/admin/gerencia') && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
+      autorizado = false;
+    }
+    // 3. Mozo
+    else if (rutaActual.includes('/admin/mozo') && rolUsuario !== 'mozo' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
+      autorizado = false;
+    }
+    // 4. Cocina / Comandas
+    else if (rutaActual.includes('/admin/comandas') && rolUsuario !== 'cocina' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
+      autorizado = false;
+    }
+    // 5. Caja
+    else if (rutaActual.includes('/admin/caja') && rolUsuario !== 'caja' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
+      autorizado = false;
+    }
+    // 6. Puerta / Guardia
+    else if (rutaActual.includes('/admin/puerta') && rolUsuario !== 'guardia' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
+      autorizado = false;
     }
 
-    // 2. Gerencia / Dueña (Solo rol 'dueña' o 'super')
-    if (rutaActual.includes('/admin/gerencia') && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
-      // Opcional: Si quieres mostrar una alerta antes de rebotarlo
+    if (!autorizado) {
+      // Mostramos la alerta de acceso denegado de forma limpia
       Swal.fire({
         icon: 'error',
         title: 'Acceso Restringido',
         text: 'No tienes autorización para ingresar a este panel.',
         confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Entendido'
+        confirmButtonText: 'Entendido',
+        background: '#0f172a',
+        color: '#fff'
       });
-      return router.createUrlTree(['/login']);
-    }
-
-    // 3. Mozo (Permite a 'mozo' o 'dueña')
-    if (rutaActual.includes('/admin/mozo') && rolUsuario !== 'mozo' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
-      return router.createUrlTree(['/login']);
-    }
-
-    // 4. Cocina / Comandas (Permite a 'cocina' o 'dueña')
-    if (rutaActual.includes('/admin/comandas') && rolUsuario !== 'cocina' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
-      return router.createUrlTree(['/login']);
-    }
-
-    // 5. Caja (Permite a 'caja' o 'dueña')
-    if (rutaActual.includes('/admin/caja') && rolUsuario !== 'caja' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
-      return router.createUrlTree(['/login']);
-    }
-
-    // 6. Puerta / Guardia (Permite a 'guardia' o 'dueña')
-    if (rutaActual.includes('/admin/puerta') && rolUsuario !== 'guardia' && rolUsuario !== 'dueña' && rolUsuario !== 'super') {
       return router.createUrlTree(['/login']);
     }
 

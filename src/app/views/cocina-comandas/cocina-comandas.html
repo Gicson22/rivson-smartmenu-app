@@ -3,8 +3,14 @@
   <!-- ZONA SUPERIOR FIJA: Header, Cocineros y Barra Horizontal de Pestañas -->
   <div class="header-fijo-cocina">
     <header class="header-cocina">
-      <h1>🍳 Cocina - Comandas en Vivo (KDS)</h1>
-      <span class="badge-estado-vivo">🟢 Sistema Activo</span>
+      <div class="logo-info-cocina" style="display: flex; align-items: center; gap: 10px;">
+        <img *ngIf="logoUrl" [src]="logoUrl" alt="Logo Local" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; background: #1e293b;" />
+        
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <h1 style="font-size: 0.95rem; margin: 0; color: #38bdf8; font-weight: 800;">Cocina - Comandas en Vivo (KDS)</h1>
+        </div>
+      </div>
+      <span class="badge-estado-vivo">🟢 En Línea</span>
     </header>
 
     <section class="panel-cocineros">
@@ -63,20 +69,24 @@
     <!-- LISTADO DE COMANDAS FILTRADAS -->
     <section class="seccion-cola">
       <div class="lista-comandas">
-        <div *ngFor="let cmd of comandasFiltradas" class="card-comanda" [ngClass]="cmd.estado">
+        <div *ngFor="let cmd of comandasFiltradas" class="card-comanda" [ngClass]="obtenerClaseEstadoVisual(cmd)">
           
           <div class="comanda-header">
             <span class="mesa-tag">MESA N° {{ cmd.numeroMesa }}</span>
             <span class="hora-tag">🕒 {{ cmd.horaPedido }}</span>
-            <span class="estado-badge" [ngClass]="cmd.estado">
-              {{ cmd.estado === 'solicitado' ? '⏳ EN COLA' : cmd.estado === 'preparando' ? '🔥 PREPARANDO' : '✅ LISTO' }}
+            <span class="estado-badge" [ngClass]="obtenerClaseEstadoVisual(cmd)">
+              {{ obtenerEstadoVisualComanda(cmd) }}
             </span>
           </div>
 
           <div class="comanda-body">
-            <p class="titulo-platos">Platos Solicitados:</p>
+            <p class="titulo-platos">Platos Solicitados (Asignación Individual):</p>
+            
+            <!-- LISTA DE ÍTEMS FILTRADA MEDIANTE FUNCIÓN DE APOYO -->
             <ul class="items-lista">
-              <li *ngFor="let it of cmd.items" class="item-kds-row">
+              <li *ngFor="let it of getItemsFiltrados(cmd); let i = index" 
+                  class="item-kds-row" style="margin-bottom: 8px; padding: 10px; background: rgba(15, 23, 42, 0.9); border-radius: 8px; border: 1px solid #334155;">
+                
                 <div class="item-main-info" style="display: flex; justify-content: space-between; align-items: center;">
                   <div>
                     <strong>{{ it.cantidad }}x</strong> {{ it.nombre }}
@@ -84,57 +94,53 @@
                       ({{ it.tamanioSeleccionado | uppercase }})
                     </span>
                   </div>
-                  <!-- Precio total del ítem (precio x cantidad) -->
+                  
                   <span class="item-precio-kds" style="color: #34d399; font-weight: bold; font-size: 0.82rem;">
                     S/ {{ (it.precioSeleccionado * it.cantidad).toFixed(2) }}
                   </span>
                 </div>
                 
-                <!-- Detalles adicionales: Ají y Observaciones -->
                 <div class="item-detalles-extra">
-                  <span class="tag-aji" *ngIf="it.nivelPicante">
-                    🌶️ Ají: {{ it.nivelPicante | uppercase }}
-                  </span>
-                  <span class="tag-obs" *ngIf="it.observacion">
-                    📝 Obs: {{ it.observacion }}
-                  </span>
+                  <span class="tag-aji" *ngIf="it.nivelPicante">🌶️ Ají: {{ it.nivelPicante | uppercase }}</span>
+                  <span class="tag-obs" *ngIf="it.observacion">📝 Obs: {{ it.observacion }}</span>
                 </div>
+
+                <!-- CONTROLES INDIVIDUALES POR CADA PLATO -->
+                <div class="item-asignacion-box" style="margin-top: 8px; border-top: 1px dashed #334155; padding-top: 6px; display: flex; justify-content: space-between; align-items: center;">
+                  
+                  <!-- Si el plato está en 'solicitado' -->
+                  <div *ngIf="!it.estadoItem || it.estadoItem === 'solicitado'" style="display: flex; gap: 6px; align-items: center; width: 100%;">
+                    <select class="select-cocinero-custom" [(ngModel)]="it.cocineroSeleccionadoTemporal" style="flex: 1; padding: 4px; font-size: 0.75rem;">
+                      <option [ngValue]="undefined" disabled>Asignar cocinero...</option>
+                      <option *ngFor="let c of cocineros" [ngValue]="c">{{ c.nombre }}</option>
+                    </select>
+                    <button class="btn-tomar" (click)="tomarPlatoIndividual(cmd, it)" style="padding: 5px 12px; font-size: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                      Tomar 🚀
+                    </button>
+                  </div>
+
+                  <!-- Si el plato está en 'preparando' -->
+                  <div *ngIf="it.estadoItem === 'preparando'" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <span style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">
+                      🔥 En preparación por: {{ it.cocineroAsignado }}
+                    </span>
+                    <button (click)="marcarPlatoListo(cmd, it)" style="background: #10b981; color: white; border: none; padding: 5px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">
+                      ✅ Marcar Listo
+                    </button>
+                  </div>
+
+                  <!-- Si el plato ya está 'listo' -->
+                  <div *ngIf="it.estadoItem === 'listo'" style="width: 100%; text-align: right;">
+                    <span style="font-size: 0.75rem; color: #34d399; font-weight: bold;">
+                      ✔️ Listo en barra (Chef: {{ it.cocineroAsignado }})
+                    </span>
+                  </div>
+
+                </div>
+
               </li>
             </ul>
 
-            <div *ngIf="cmd.cocineroAsignado" class="asignado-txt">
-              👨‍🍳 Asignado a: <strong>{{ cmd.cocineroAsignado }}</strong>
-            </div>
-          </div>
-
-          <div class="comanda-footer">
-            <div *ngIf="cmd.estado === 'solicitado'" class="selector-tomar">
-              <p class="small-label">Asignar a cocinero:</p>
-              <div class="asignacion-container" style="display: flex; gap: 8px; align-items: center;">
-            
-                <select class="select-cocinero-custom" [(ngModel)]="cmd.cocineroSeleccionadoTemporal">
-                  <option [ngValue]="undefined" disabled>Seleccionar</option>
-                  <option *ngFor="let cocinero of cocineros" [ngValue]="cocinero">
-                    {{ cocinero.nombre }}
-                  </option>
-                </select>
-            
-                <!-- Botón para confirmar la asignación -->
-                <button class="btn-tomar" (click)="iniciarPreparacion(cmd)"
-                  style="padding: 6px 12px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                  Tomar 🚀
-                </button>
-            
-              </div>
-            </div>
-            
-            <button *ngIf="cmd.estado === 'preparando'" class="btn-listo" (click)="marcarListo(cmd)">
-              ✅ Marcar "Listo para Llevar"
-            </button>
-            
-            <div *ngIf="cmd.estado === 'listo'" class="listo-mensaje">
-              ✔️ Plato despachado a barra (Esperando Mozo)
-            </div>
           </div>
 
         </div>

@@ -59,8 +59,10 @@ export class MozoAtencion implements OnInit, OnDestroy {
   restaurantIconUrl: string = '';
   
   filtroMozoTab: 'libres' | 'mis-mesas' | 'colegas' | 'alertas' = 'alertas';
-
   mesasSalon: MesaSalon[] = [];
+
+  // ⚡ VARIABLE PARA RASTREAR EL MODAL ABIERTO EN TIEMPO REAL
+  mesaModalAbierta: MesaSalon | null = null;
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
@@ -174,12 +176,18 @@ export class MozoAtencion implements OnInit, OnDestroy {
             mesaEncontrada.totalMesa += totalDoc;
 
             items.forEach((item: any) => {
+              let estadoRealItem = item.estadoItem || item.estado;
+              
+              if (estadoRealItem === 'pendiente_despacho' || !estadoRealItem || estadoRealItem === 'undefined') {
+                estadoRealItem = 'solicitado';
+              }
+
               mesaEncontrada!.itemsEnMesa.push({
                 idDocumentoPedido: docSnap.id,
                 nombre: item.nombre,
                 cantidad: item.cantidad,
                 precioSeleccionado: item.precioSeleccionado,
-                estado: item.estado || estadoGlobal,
+                estado: estadoRealItem,
                 destino: item.destino || data['destino'] || 'cocina',
                 tamanioSeleccionado: item.tamanioSeleccionado,
                 nivelPicante: item.nivelPicante,
@@ -187,6 +195,15 @@ export class MozoAtencion implements OnInit, OnDestroy {
               });
             });
           });
+
+          // ⚡ SI EL MOZO TIENE EL MODAL ABIERTO, ACTUALIZAMOS SU CONTENIDO AL VUELO
+          if (this.mesaModalAbierta) {
+            const mesaActualizada = this.mesasSalon.find(m => m.numeroMesa === this.mesaModalAbierta?.numeroMesa);
+            if (mesaActualizada) {
+              this.mesaModalAbierta = mesaActualizada;
+              this.actualizarContenidoModalSiEstaAbierto(mesaActualizada);
+            }
+          }
 
           this.cdr.detectChanges();
         });
@@ -233,48 +250,67 @@ export class MozoAtencion implements OnInit, OnDestroy {
     }
   }
 
-  verDetallePedido(mesa: MesaSalon): void {
-    const headerHtml = `
-      <div style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 0; margin: 0;">
-        ${this.restaurantIconUrl ? 
-          `<img src="${this.restaurantIconUrl}" alt="Logo Local" style="width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" />` : 
-          `<div style="width: 52px; height: 52px; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0;">Logo</div>`
-        }
-        <h2 style="margin: 0; font-family: 'Times New Roman', Times, serif; font-size: 1.5rem; color: #38bdf8; font-weight: 400; text-align: left; line-height: 1.1;">Detalle - Mesa Nº ${mesa.numeroMesa}</h2>
-      </div>
-    `;
-
-    // let htmlLista = '<div style="text-align: left; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-right: 4px;">';
+  // ⚡ GENERADOR DINÁMICO DE HTML PARA EL MODAL (CONSERVANDO TU DISEÑO EXACTO)
+  private generarHtmlItemsModal(mesa: MesaSalon): string {
     let htmlLista = '<div id="lista-items-modal" style="text-align: left; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-right: 4px;">';
 
     mesa.itemsEnMesa.forEach((item, index) => {
-      const colorEstado = item.estado === 'listo' ? '#10b981' : item.estado === 'preparando' ? '#f59e0b' : item.estado === 'entregado' ? '#8b5cf6' : '#3b82f6';
+      let bgColor = 'rgba(59, 130, 246, 0.15)';
+      let borderColor = '#3b82f6';
+      let textColor = '#60a5fa';
+      let textoEstadoPlato = '⏳ Solicitado';
+
+      if (item.estado === 'solicitado') {
+        bgColor = 'rgba(217, 119, 6, 0.2)';
+        borderColor = '#d97706';
+        textColor = '#fbbf24';
+        textoEstadoPlato = '⏳ Solicitado';
+      } else if (item.estado === 'preparando') {
+        bgColor = 'rgba(245, 158, 11, 0.2)';
+        borderColor = '#f59e0b';
+        textColor = '#fbbf24';
+        textoEstadoPlato = '🔥 Preparando';
+      } else if (item.estado === 'listo') {
+        bgColor = 'rgba(16, 185, 129, 0.2)';
+        borderColor = '#10b981';
+        textColor = '#34d399';
+        textoEstadoPlato = '✅ ¡LISTO!';
+      } else if (item.estado === 'entregado') {
+        bgColor = 'rgba(139, 92, 246, 0.2)';
+        borderColor = '#8b5cf6';
+        textColor = '#c084fc';
+        textoEstadoPlato = '🍽️ Entregado';
+      }
+
+      const colorBordeLateral = item.estado === 'listo' ? '#10b981' : item.estado === 'preparando' ? '#f59e0b' : item.estado === 'entregado' ? '#8b5cf6' : '#3b82f6';
       
       const esCocina = item.destino === 'cocina';
       const textoDestino = esCocina ? 'Cocina' : 'Bebida';
       const colorBadgeBg = esCocina ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
       const colorBadgeText = esCocina ? '#38bdf8' : '#fbbf24';
 
-      const textoEstadoPlato = item.estado === 'solicitado' ? '⏳ En cola' : 
-                               item.estado === 'preparando' ? '🔥 En fuego' : 
-                               item.estado === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado';
-
-      // REGLA ESTRICTA: El botón SOLO aparece si la mesa YA tiene mozo asignado Y el ítem NO está entregado
       const tieneMozoAsignado = !!mesa.mozoAsignado;
-      const mostrarBotonEntrega = tieneMozoAsignado && item.estado !== 'entregado';
+      const esDeCocina = item.destino === 'cocina';
+      const mostrarBotonEntrega = tieneMozoAsignado && item.estado !== 'entregado' && (esDeCocina ? item.estado === 'listo' : true);
 
       htmlLista += `
-        <div style="background: #1e293b; padding: 8px 10px; border-radius: 6px; border-left: 4px solid ${colorEstado}; color: #f8fafc; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+        <div style="background: #1e293b; padding: 8px 10px; border-radius: 6px; border-left: 4px solid ${colorBordeLateral}; color: #f8fafc; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
           
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
             <div style="font-size: 0.9rem; font-weight: bold;">${item.cantidad}x ${item.nombre}</div>
             ${item.tamanioSeleccionado ? `<div style="font-size: 0.72rem; color: #38bdf8; font-weight: bold;">(${item.tamanioSeleccionado.toUpperCase()})</div>` : ''}
             ${item.nivelPicante ? `<div style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">🌶️ Ají: ${item.nivelPicante.toUpperCase()}</div>` : ''}
             ${item.observacion ? `<div style="font-size: 0.7rem; color: #c084fc; font-style: italic;">📝 ${item.observacion}</div>` : ''}
-            <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">Estado: <strong style="color: #38bdf8;">${textoEstadoPlato}</strong></div>
+            
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+              <span style="font-size: 0.68rem; color: #94a3b8;">Estado:</span>
+              <span style="display: inline-flex; justify-content: center; align-items: center; padding: 4px 10px; border-radius: 20px; background-color: ${bgColor}; border: 1px solid ${borderColor}; color: ${textColor}; font-size: 0.72rem; font-weight: bold; min-width: 95px; text-align: center;">
+                ${textoEstadoPlato}
+              </span>
+            </div>
             
             ${mostrarBotonEntrega ? `
-              <button id="btn-entregar-item-${index}" style="margin-top: 4px; background: #059669; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer;">
+              <button id="btn-entregar-item-${index}" style="margin-top: 6px; background: #059669; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.68rem; font-weight: bold; cursor: pointer;">
                 🏃‍♂️ Marcar Entregado
               </button>` : ''}
           </div>
@@ -293,6 +329,43 @@ export class MozoAtencion implements OnInit, OnDestroy {
       `;
     });
     htmlLista += '</div>';
+    return htmlLista;
+  }
+
+  // ⚡ ACTUALIZADOR DE LA VISTA DEL MODAL EN VIVO
+  private actualizarContenidoModalSiEstaAbierto(mesa: MesaSalon): void {
+    const container = Swal.getHtmlContainer();
+    if (container) {
+      const htmlListaDiv = container.querySelector('#lista-items-modal');
+      if (htmlListaDiv) {
+        htmlListaDiv.outerHTML = this.generarHtmlItemsModal(mesa);
+
+        mesa.itemsEnMesa.forEach((item, index) => {
+          const btn = document.getElementById(`btn-entregar-item-${index}`);
+          if (btn) {
+            btn.addEventListener('click', () => {
+              this.entregarItemDesdeModal(mesa, item, index);
+            });
+          }
+        });
+      }
+    }
+  }
+
+  verDetallePedido(mesa: MesaSalon): void {
+    this.mesaModalAbierta = mesa;
+
+    const headerHtml = `
+      <div style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; padding: 0; margin: 0;">
+        ${this.restaurantIconUrl ? 
+          `<img src="${this.restaurantIconUrl}" alt="Logo Local" style="width: 52px; height: 52px; border-radius: 50%; object-fit: cover; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.3);" />` : 
+          `<div style="width: 52px; height: 52px; background: #1e293b; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; flex-shrink: 0;">Logo</div>`
+        }
+        <h2 style="margin: 0; font-family: 'Times New Roman', Times, serif; font-size: 1.5rem; color: #38bdf8; font-weight: 400; text-align: left; line-height: 1.1;">Detalle - Mesa Nº ${mesa.numeroMesa}</h2>
+      </div>
+    `;
+
+    const htmlLista = this.generarHtmlItemsModal(mesa);
 
     const footerHtml = `
       <div style="width: 100%; padding-top: 6px; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.15);">
@@ -327,139 +400,48 @@ export class MozoAtencion implements OnInit, OnDestroy {
             });
           }
         });
+      },
+      willClose: () => {
+        this.mesaModalAbierta = null;
       }
     });
   }
-
-  // async entregarItemDesdeModal(mesa: MesaSalon, item: ItemMesaMozo): Promise<void> {
-  //   try {
-  //     const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
-      
-  //     // Actualizamos el estado del ítem individual o del documento en Firestore
-  //     await updateDoc(pedidoRef, {
-  //       estado: 'entregado'
-  //     });
-
-  //     // Actualizamos localmente el estado del ítem
-  //     item.estado = 'entregado';
-
-  //     // ⚠️ SOLUCIÓN CLAVE: En lugar de cerrar y abrir otro Swal que bota al usuario, 
-  //     // actualizamos el contenido del DOM del modal actual de SweetAlert al vuelo:
-  //     const container = Swal.getHtmlContainer();
-  //     if (container) {
-  //       // Volvemos a generar el detalle y lo inyectamos sin cerrar la ventana
-  //       this.verDetallePedido(mesa);
-  //     }
-
-  //     // Toast elegante flotante de 3 segundos para confirmar la entrega sin estorbar
-  //     const Toast = Swal.mixin({
-  //       toast: true,
-  //       position: 'top-end',
-  //       showConfirmButton: false,
-  //       timer: 3000,
-  //       timerProgressBar: true,
-  //       background: '#0f172a',
-  //       color: '#38bdf8'
-  //     });
-  //     Toast.fire({
-  //       icon: 'success',
-  //       title: `¡${item.nombre} marcado como entregado!`
-  //     });
-
-  //   } catch (error) {
-  //     console.error('Error al entregar item desde modal:', error);
-  //     Swal.fire({
-  //       icon: 'error',
-  //       title: 'Error',
-  //       text: 'No se pudo actualizar el estado.',
-  //       confirmButtonText: 'OK'
-  //     });
-  //   }
-  // }
 
   async entregarItemDesdeModal(mesa: MesaSalon, item: ItemMesaMozo, indexBtn: number): Promise<void> {
     try {
       const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
       
-      // Actualizamos en Firebase
+      const itemsActualizadosBD = mesa.itemsEnMesa
+        .filter(it => it.idDocumentoPedido === item.idDocumentoPedido)
+        .map(it => {
+          const esElItemModificado = (it.nombre === item.nombre && it.precioSeleccionado === item.precioSeleccionado);
+          const nuevoEstadoItem = esElItemModificado ? 'entregado' : (it.estado || 'solicitado');
+          
+          return {
+            productoId: (it as any).productoId || '',
+            nombre: it.nombre,
+            cantidad: it.cantidad,
+            precioSeleccionado: it.precioSeleccionado,
+            categoria: (it as any).categoria || 'bebidas',
+            estadoItem: nuevoEstadoItem,
+            estado: nuevoEstadoItem,
+            destino: it.destino || 'mozo',
+            tamanioSeleccionado: it.tamanioSeleccionado || null,
+            nivelPicante: it.nivelPicante || null,
+            observacion: it.observacion || null
+          };
+        });
+
+      const todosEntregados = itemsActualizadosBD.every(i => i.estadoItem === 'entregado');
+      const estadoGlobalDoc = todosEntregados ? 'entregado' : 'pendiente_despacho';
+
       await updateDoc(pedidoRef, {
-        estado: 'entregado'
+        estado: estadoGlobalDoc,
+        items: itemsActualizadosBD
       });
 
-      // Actualizamos localmente el estado del ítem
       item.estado = 'entregado';
 
-      // ⚠️ SOLUCIÓN DIRECTA AL DOM: En lugar de recrear el Swal (lo que te botaba al listado),
-      // actualizamos el texto de estado y ocultamos el botón específico al instante en la pantalla:
-      const btnElement = document.getElementById(`btn-entregar-item-${indexBtn}`);
-      if (btnElement) {
-        btnElement.style.display = 'none'; // Oculta el botón de inmediato
-      }
-
-      // Buscamos el contenedor del texto de estado de este ítem y lo actualizamos en vivo
-      // (Opcional pero asegura que el usuario vea el cambio sin cerrar el modal)
-      const container = Swal.getHtmlContainer();
-      if (container) {
-        // Actualizamos los datos en vivo manteniendo el modal abierto
-        // O más seguro aún: reconstruimos la lista HTML interna sin cerrar el popup principal:
-        const htmlListaDiv = container.querySelector('#lista-items-modal');
-        if (htmlListaDiv) {
-          // Generamos de nuevo el HTML interno de la lista con el estado actualizado
-          let nuevoHtml = '';
-          mesa.itemsEnMesa.forEach((it, idx) => {
-            const colorEstado = it.estado === 'listo' ? '#10b981' : it.estado === 'preparando' ? '#f59e0b' : it.estado === 'entregado' ? '#8b5cf6' : '#3b82f6';
-            const esCocina = it.destino === 'cocina';
-            const textoDestino = esCocina ? 'Cocina' : 'Bebida';
-            const colorBadgeBg = esCocina ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
-            const colorBadgeText = esCocina ? '#38bdf8' : '#fbbf24';
-            const textoEstadoPlato = it.estado === 'solicitado' ? '⏳ En cola' : 
-                                     it.estado === 'preparando' ? '🔥 En fuego' : 
-                                     it.estado === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado';
-
-            const tieneMozoAsignado = !!mesa.mozoAsignado;
-            const mostrarBotonEntrega = tieneMozoAsignado && it.estado !== 'entregado';
-
-            nuevoHtml += `
-              <div style="background: #1e293b; padding: 8px 10px; border-radius: 6px; border-left: 4px solid ${colorEstado}; color: #f8fafc; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 3px;">
-                  <div style="font-size: 0.9rem; font-weight: bold;">${it.cantidad}x ${it.nombre}</div>
-                  ${it.tamanioSeleccionado ? `<div style="font-size: 0.72rem; color: #38bdf8; font-weight: bold;">(${it.tamanioSeleccionado.toUpperCase()})</div>` : ''}
-                  ${it.nivelPicante ? `<div style="font-size: 0.75rem; color: #fbbf24; font-weight: bold;">🌶️ Ají: ${it.nivelPicante.toUpperCase()}</div>` : ''}
-                  ${it.observacion ? `<div style="font-size: 0.7rem; color: #c084fc; font-style: italic;">📝 ${it.observacion}</div>` : ''}
-                  <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 2px;">Estado: <strong style="color: #38bdf8;">${textoEstadoPlato}</strong></div>
-                  
-                  ${mostrarBotonEntrega ? `
-                    <button id="btn-entregar-item-${idx}" class="btn-accion-item-modal" data-index="${idx}" style="margin-top: 4px; background: #059669; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer;">
-                      🏃‍♂️ Marcar Entregado
-                    </button>` : ''}
-                </div>
-                <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;">
-                  <span style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: ${colorBadgeBg}; color: ${colorBadgeText}; display: flex; align-items: center; gap: 3px; font-weight: bold;">
-                    <span style="width: 4px; height: 4px; background: ${colorBadgeText}; border-radius: 50%;"></span>
-                    ${textoDestino}
-                  </span>
-                  <div style="font-size: 0.8rem; color: #34d399; font-weight: bold;">
-                    S/ ${(it.precioSeleccionado * it.cantidad).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-            `;
-          });
-          htmlListaDiv.innerHTML = nuevoHtml;
-
-          // Reasignamos los eventos a los nuevos botones generados dentro del modal
-          mesa.itemsEnMesa.forEach((it, idx) => {
-            const nuevoBtn = document.getElementById(`btn-entregar-item-${idx}`);
-            if (nuevoBtn) {
-              nuevoBtn.addEventListener('click', () => {
-                this.entregarItemDesdeModal(mesa, it, idx);
-              });
-            }
-          });
-        }
-      }
-
-      // Toast elegante sin interrumpir
       const Toast = Swal.mixin({
         toast: true,
         position: 'top-end',

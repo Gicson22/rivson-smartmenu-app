@@ -313,12 +313,6 @@
   border: 1px solid #334155;
 }
 
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.03); }
-  100% { transform: scale(1); }
-}
-
 @keyframes pulse-border {
   0% { border-color: #ef4444; }
   50% { border-color: #7f1d1d; }

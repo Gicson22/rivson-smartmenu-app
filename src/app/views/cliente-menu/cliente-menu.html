@@ -9,24 +9,17 @@
 
   <!-- Filtro por Categorías (Navbar Deslizable) -->
   <nav class="categorias">
-    <button [class.active]="categoriaSeleccionada === 'todos'" (click)="categoriaSeleccionada = 'todos'">✨
-      Todos</button>
-    <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="categoriaSeleccionada = 'ceviches'">🐟
-      Ceviches</button>
-    <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="categoriaSeleccionada = 'sudados'">🍲
-      Sudados</button>
-    <button [class.active]="categoriaSeleccionada === 'secos'" (click)="categoriaSeleccionada = 'secos'">🥩
-      Secos</button>
-    <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="categoriaSeleccionada = 'jaleas'">🍤
-      Jaleas</button>
-    <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">🥤
-      Bebidas</button>
+    <button [class.active]="categoriaSeleccionada === 'todos'" (click)="categoriaSeleccionada = 'todos'">✨ Todos</button>
+    <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="categoriaSeleccionada = 'ceviches'">🐟 Ceviches</button>
+    <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="categoriaSeleccionada = 'sudados'">🍲 Sudados</button>
+    <button [class.active]="categoriaSeleccionada === 'secos'" (click)="categoriaSeleccionada = 'secos'">🥩 Secos</button>
+    <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="categoriaSeleccionada = 'jaleas'">🍤 Jaleas</button>
+    <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">🥤 Bebidas</button>
   </nav>
 
   <!-- Lista de Productos en Grilla de 2 Columnas -->
   <main class="lista-productos-grid">
     <div *ngFor="let producto of productosFiltrados" class="producto-card-item" (click)="abrirModalOpciones(producto)">
-
       <div class="card-img-wrapper">
         <img [src]="producto.imagenUrl || 'assets/img/plato-default.png'"
           (error)="$any($event.target).src = 'assets/img/plato-default.png'" [alt]="producto.nombre" />
@@ -39,8 +32,7 @@
 
         <div class="card-precios-box">
           <ng-container *ngIf="producto.tienePorciones; else precioUnico">
-            <span class="txt-precio-desde">Desde: <strong>S/ {{ producto.porciones?.personal ?
-                producto.porciones.personal.toFixed(2) : '0.00' }}</strong></span>
+            <span class="txt-precio-desde">Desde: <strong>S/ {{ producto.porciones?.personal ? producto.porciones.personal.toFixed(2) : '0.00' }}</strong></span>
           </ng-container>
           <ng-template #precioUnico>
             <span class="txt-precio-unico">S/ {{ producto.precio ? producto.precio.toFixed(2) : '0.00' }}</span>
@@ -49,7 +41,6 @@
 
         <button class="btn-agregar-card">+ Agregar</button>
       </div>
-
     </div>
 
     <div *ngIf="productosFiltrados.length === 0" class="sin-datos"
@@ -72,7 +63,7 @@
     </div>
 
     <div *ngIf="carrito.length === 0" class="resumen-enviado-container" (click)="abrirResumenMesa()">
-      <span class="txt-consumo-mesa">📋 Ver mi consumo actual de la mesa</span>
+      <span class="txt-consumo-mesa">📋 Ver estado de mi pedido y consumo</span>
     </div>
   </footer>
 
@@ -97,16 +88,13 @@
         <div *ngIf="productoSeleccionado.tienePorciones" class="grupo-opcion">
           <label>📏 Elige el Tamaño:</label>
           <div class="opciones-grid">
-            <button type="button" [class.active]="tamanioSeleccionado === 'personal'"
-              (click)="tamanioSeleccionado = 'personal'">
+            <button type="button" [class.active]="tamanioSeleccionado === 'personal'" (click)="tamanioSeleccionado = 'personal'">
               Personal <br><strong>S/ {{ productoSeleccionado.porciones?.personal?.toFixed(2) }}</strong>
             </button>
-            <button type="button" [class.active]="tamanioSeleccionado === 'mediano'"
-              (click)="tamanioSeleccionado = 'mediano'">
+            <button type="button" [class.active]="tamanioSeleccionado === 'mediano'" (click)="tamanioSeleccionado = 'mediano'">
               Mediano <br><strong>S/ {{ productoSeleccionado.porciones?.mediano?.toFixed(2) }}</strong>
             </button>
-            <button type="button" [class.active]="tamanioSeleccionado === 'familiar'"
-              (click)="tamanioSeleccionado = 'familiar'">
+            <button type="button" [class.active]="tamanioSeleccionado === 'familiar'" (click)="tamanioSeleccionado = 'familiar'">
               Familiar <br><strong>S/ {{ productoSeleccionado.porciones?.familiar?.toFixed(2) }}</strong>
             </button>
           </div>
@@ -115,16 +103,13 @@
         <div *ngIf="productoSeleccionado.categoria !== 'bebidas'" class="grupo-opcion">
           <label>🌶️ Nivel de Ají / Picante:</label>
           <div class="opciones-grid aji-grid">
-            <button type="button" [class.active]="nivelPicanteSeleccionado === 'picante'"
-              (click)="nivelPicanteSeleccionado = 'picante'">
+            <button type="button" [class.active]="nivelPicanteSeleccionado === 'picante'" (click)="nivelPicanteSeleccionado = 'picante'">
               🌶️ Picante <br><span class="sub-op">Con su ají limo</span>
             </button>
-            <button type="button" [class.active]="nivelPicanteSeleccionado === 'medio'"
-              (click)="nivelPicanteSeleccionado = 'medio'">
+            <button type="button" [class.active]="nivelPicanteSeleccionado === 'medio'" (click)="nivelPicanteSeleccionado = 'medio'">
               🌶️ Medio <br><span class="sub-op">Punto exacto</span>
             </button>
-            <button type="button" [class.active]="nivelPicanteSeleccionado === 'sin_aji'"
-              (click)="nivelPicanteSeleccionado = 'sin_aji'">
+            <button type="button" [class.active]="nivelPicanteSeleccionado === 'sin_aji'" (click)="nivelPicanteSeleccionado = 'sin_aji'">
               🟢 Sin Ají <br><span class="sub-op">Suave / Niños</span>
             </button>
           </div>
@@ -132,8 +117,7 @@
 
         <div class="grupo-opcion">
           <label>📝 Comentarios o indicaciones (Opcional):</label>
-          <input type="text" [(ngModel)]="observacionItem" placeholder="Ej: Sin cebolla, zarandaja aparte..."
-            class="input-observacion" />
+          <input type="text" [(ngModel)]="observacionItem" placeholder="Ej: Sin cebolla, zarandaja aparte..." class="input-observacion" />
         </div>
       </div>
 
@@ -156,35 +140,25 @@
       </div>
 
       <div class="modal-body">
-
-        <!-- SECCIÓN 1: Historial con Navbar de Pestañas por Estado -->
         <div *ngIf="itemsPedidoEnviado.length > 0" class="seccion-historial" style="margin-bottom: 16px;">
           <p class="subtitulo-modal" style="color: #38bdf8; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">
             🔥 Estado de tu Consumo en Mesa:</p>
 
           <div class="categorias-estados-modal">
-            <button type="button" [class.active]="filtroEstadoModal === 'todos'" (click)="filtrarEstado('todos')">
-              ✨ Todos ({{ itemsPedidoEnviado.length }})
-            </button>
-            <button type="button" [class.active]="filtroEstadoModal === 'solicitado'"
-              (click)="filtrarEstado('solicitado')">
+            <button type="button" [class.active]="filtroEstadoModal === 'solicitado'" (click)="filtrarEstado('solicitado')">
               ⏳ Solicitados ({{ obtenerItemsPorEstado('solicitado').length }})
             </button>
-            <!-- 👈 CORREGIDO AQUÍ: pasamos de 'en_preparacion' a 'preparando' -->
-            <button type="button" [class.active]="filtroEstadoModal === 'preparando'"
-              (click)="filtrarEstado('preparando')">
+            <button type="button" [class.active]="filtroEstadoModal === 'preparando'" (click)="filtrarEstado('preparando')">
               👨‍🍳 Preparando ({{ obtenerItemsPorEstado('preparando').length }})
             </button>
             <button type="button" [class.active]="filtroEstadoModal === 'listo'" (click)="filtrarEstado('listo')">
               ✅ Listos ({{ obtenerItemsPorEstado('listo').length }})
             </button>
-            <button type="button" [class.active]="filtroEstadoModal === 'entregado'"
-              (click)="filtrarEstado('entregado')">
+            <button type="button" [class.active]="filtroEstadoModal === 'entregado'" (click)="filtrarEstado('entregado')">
               🍽️ Entregados ({{ obtenerItemsPorEstado('entregado').length }})
             </button>
           </div>
 
-          <!-- GRILLA DE CARDS DE 2 COLUMNAS -->
           <div class="contenedor-historial-fijo" style="margin-top: 10px;">
             <div *ngIf="itemsFiltradosModal.length > 0" class="historial-grid-cards" #gridCards>
               <div *ngFor="let item of itemsFiltradosModal" class="item-card-historial" [ngClass]="{
@@ -194,24 +168,24 @@
                     'entregado-card': item.estadoItem === 'entregado' || item.estadoItem === 'servido' || item.estadoItem === 'despachado'
                   }">
                 <div class="detalle-item-modal">
-                  <h4>{{ item.nombre }} <span class="badge-tamanio" *ngIf="item.tamanioSeleccionado">({{
-                      item.tamanioSeleccionado | uppercase }})</span></h4>
+                  <h4>{{ item.nombre }} <span class="badge-tamanio" *ngIf="item.tamanioSeleccionado">({{ item.tamanioSeleccionado | uppercase }})</span></h4>
                   <span class="detalle-extra" *ngIf="item.nivelPicante">Ají: {{ item.nivelPicante | uppercase }}</span>
                   <span class="detalle-extra" *ngIf="item.observacion">Obs: {{ item.observacion }}</span>
-                  <span class="precio-modal">S/ {{ (item.precioSeleccionado * item.cantidad).toFixed(2) }} (x{{
-                    item.cantidad }})</span>
+                  <span class="precio-modal">S/ {{ (item.precioSeleccionado * item.cantidad).toFixed(2) }} (x{{ item.cantidad }})</span>
 
-                  <!-- Contenedor de estados y alerta al mozo -->
-                  <div class="estados-cliente-box"
-                    style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
-                    <span class="badge-estado-item" [ngClass]="item.estadoItem">
-                      {{ (item.estadoItem === 'solicitado' || item.estadoItem === 'pendiente_despacho') ? '⏳ Solicitado'
-                      :
-                      item.estadoItem === 'preparando' ? '👨‍🍳 En Preparación' :
-                      item.estadoItem === 'listo' ? '✅ ¡Listo en Barra!' : '🍽️ Entregado' }}
+                  <!-- ⚡ ETIQUETA TIPO PÍLDORA CENTRADA IDÉNTICA AL MOZO -->
+                  <div class="estados-cliente-box" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
+                    <span class="badge-estado-pildora" [ngClass]="{
+                      'estado-solicitado': item.estadoItem === 'solicitado' || item.estadoItem === 'pendiente_despacho',
+                      'estado-preparando': item.estadoItem === 'preparando',
+                      'estado-listo': item.estadoItem === 'listo',
+                      'estado-entregado': item.estadoItem === 'entregado' || item.estadoItem === 'servido' || item.estadoItem === 'despachado'
+                    }">
+                      {{ (item.estadoItem === 'solicitado' || item.estadoItem === 'pendiente_despacho') ? '⏳ Solicitado' :
+                         item.estadoItem === 'preparando' ? '🔥 Preparando' :
+                         item.estadoItem === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado' }}
                     </span>
 
-                    <!-- 👈 Píldora que avisa al cliente que se está llamando al mozo -->
                     <span *ngIf="item.estadoItem === 'listo'" class="pill-notificando-mozo"
                       style="font-size: 0.7rem; background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 3px 6px; border-radius: 4px; border: 1px dashed #10b981; display: inline-flex; align-items: center; gap: 4px;">
                       🔔 Notificando al mozo para llevar a mesa
@@ -229,12 +203,10 @@
 
         <!-- SECCIÓN 2: Carrito nuevo pendiente de enviar -->
         <div *ngIf="carrito.length > 0" class="seccion-carrito-nuevo" style="margin-top: 16px;">
-          <p class="subtitulo-modal" style="color: #f59e0b; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">
-            🛒 Nuevos platos por enviar:</p>
+          <p class="subtitulo-modal" style="color: #f59e0b; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">🛒 Nuevos platos por enviar:</p>
           <div *ngFor="let item of carrito; let i = index" class="item-modal" style="margin-bottom: 8px;">
             <div class="detalle-item-modal">
-              <h4>{{ item.nombre }} <span class="badge-tamanio" *ngIf="item.tamanioSeleccionado">({{
-                  item.tamanioSeleccionado | uppercase }})</span></h4>
+              <h4>{{ item.nombre }} <span class="badge-tamanio" *ngIf="item.tamanioSeleccionado">({{ item.tamanioSeleccionado | uppercase }})</span></h4>
               <span class="detalle-extra" *ngIf="item.nivelPicante">Ají: {{ item.nivelPicante | uppercase }}</span>
               <span class="detalle-extra" *ngIf="item.observacion">Obs: {{ item.observacion }}</span>
               <span class="precio-modal">S/ {{ (item.precioSeleccionado * item.cantidad).toFixed(2) }}</span>
@@ -248,8 +220,7 @@
           </div>
         </div>
 
-        <div *ngIf="itemsPedidoEnviado.length === 0 && carrito.length === 0"
-          style="text-align: center; padding: 40px; color: #94a3b8;">
+        <div *ngIf="itemsPedidoEnviado.length === 0 && carrito.length === 0" style="text-align: center; padding: 40px; color: #94a3b8;">
           Aún no has agregado platos o bebidas a esta mesa.
         </div>
       </div>
@@ -266,8 +237,7 @@
           <button class="btn-enviar-modal" (click)="enviarPedidoNube()">Enviar 🔥</button>
         </div>
 
-        <button *ngIf="carrito.length === 0" class="btn-enviar-modal full-width"
-          (click)="mostrarModalCarrito = false">Cerrar 👍</button>
+        <button *ngIf="carrito.length === 0" class="btn-enviar-modal full-width" (click)="mostrarModalCarrito = false">Cerrar 👍</button>
       </div>
     </div>
   </div>

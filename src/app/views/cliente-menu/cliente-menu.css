@@ -1,6 +1,3 @@
-/* ==========================================================================
-   ESTILOS GENERALES DE LA PÁGINA
-   ========================================================================== */
 .menu-container {
   max-width: 480px;
   margin: 0 auto;
@@ -83,9 +80,6 @@
   font-weight: 700;
 }
 
-/* ==========================================================================
-   GRILLA DE PRODUCTOS Y SUS PRECIOS (UNIFICADOS)
-   ========================================================================== */
 .lista-productos-grid {
   padding: 12px;
   display: grid;
@@ -161,7 +155,6 @@
   overflow: hidden;
 }
 
-/* Caja de precios en las tarjetas de la carta */
 .card-precios-box {
   background: #0f172a;
   padding: 5px;
@@ -202,9 +195,6 @@
   text-align: center;
 }
 
-/* ==========================================================================
-   ESTRUCTURA BASE DE MODALES
-   ========================================================================== */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -252,9 +242,6 @@
   color: #94a3b8;
 }
 
-/* ==========================================================================
-   1. MODAL PERSONALIZAR PEDIDO (AJUSTADO SIN SCROLL)
-   ========================================================================== */
 .modal-personalizacion {
   max-height: 85vh;
 }
@@ -402,9 +389,6 @@
   cursor: pointer;
 }
 
-/* ==========================================================================
-   2. MODAL RESUMEN DE CUENTA Y FILAS DEL CARRITO (.item-modal)
-   ========================================================================== */
 .modal-resumen-cuenta {
   height: 82vh;
   max-height: 82vh;
@@ -418,7 +402,6 @@
   padding: 14px;
 }
 
-/* Fila de cada item nuevo en el carrito (CLASE CORREGIDA DE TU HTML) */
 .item-modal {
   display: flex;
   justify-content: space-between;
@@ -501,7 +484,6 @@
   color: #f87171;
 }
 
-/* Footer del modal */
 .modal-footer {
   padding: 5px 16px;
   border-top: 0px solid #334155;
@@ -576,7 +558,6 @@
   flex: none;
 }
 
-/* HISTORIAL EN MODAL */
 .contenedor-historial-fijo {
   min-height: 180px;
   display: flex;
@@ -626,37 +607,48 @@
   margin: 2px 0;
 }
 
-.badge-estado-item {
-  font-size: 0.62rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-top: 4px;
+/* ⚡ NUEVOS ESTILOS TIPO PÍLDORA CENTRADA IDÉNTICOS AL MOZO */
+.badge-estado-pildora {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
   font-weight: bold;
+  min-width: 95px;
+  text-align: center;
+  margin-top: 4px;
 }
 
-.badge-estado-item.solicitado, .badge-estado-item.pendiente_despacho {
-  background: rgba(245, 158, 11, 0.2);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+.estado-solicitado {
+  background-color: rgba(217, 119, 6, 0.2);
+  border: 1px solid #d97706;
+  color: #fbbf24;
 }
 
-.badge-estado-item.en_preparacion {
-  background: rgba(56, 189, 248, 0.2);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.4);
+.estado-preparando {
+  background-color: rgba(245, 158, 11, 0.2);
+  border: 1px solid #f59e0b;
+  color: #fbbf24;
 }
 
-.badge-estado-item.listo {
-  background: rgba(16, 185, 129, 0.2);
+.estado-listo {
+  background-color: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
   color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.estado-entregado {
+  background-color: rgba(139, 92, 246, 0.2);
+  border: 1px solid #8b5cf6;
+  color: #c084fc;
 }
 
 .solicitado-card { border-left-color: #f59e0b !important; }
 .preparacion-card { border-left-color: #38bdf8 !important; }
 .listo-card { border-left-color: #34d399 !important; }
-.entregado-card { border-left-color: #94a3b8 !important; opacity: 0.85; }
+.entregado-card { border-left-color: #8b5cf6 !important; opacity: 0.85; }
 
 .categorias-estados-modal {
   display: flex;
@@ -700,9 +692,6 @@
   text-align: center;
 }
 
-/* ==========================================================================
-   BARRA FLOTANTE INFERIOR (CARRITO EN PANTALLA PRINCIPAL)
-   ========================================================================== */
 .carrito-bar {
   position: fixed;
   bottom: 0;

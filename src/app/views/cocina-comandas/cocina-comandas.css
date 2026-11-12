@@ -386,3 +386,40 @@
   color: #c084fc; /* Morado claro para las observaciones */
   font-style: italic;
 }
+
+/* 🟢 ESTILOS GLOBALES IDÉNTICOS AL MODAL DEL MOZO PARA SWEETALERT */
+::ng-deep .modal-custom-cocina-identico {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  border: 1px solid #334155 !important;
+  border-radius: 12px !important;
+}
+
+::ng-deep .modal-custom-cocina-identico.swal2-popup .swal2-header,
+::ng-deep .modal-custom-cocina-identico.swal2-popup .swal2-title,
+::ng-deep .modal-custom-cocina-identico.swal2-popup .swal2-html-container {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: block !important;
+}
+
+::ng-deep .modal-custom-cocina-identico.swal2-popup .swal2-actions {
+  margin: 10px 0 0 0 !important;
+  padding: 0 !important;
+}
+
+::ng-deep .modal-custom-cocina-identico.swal2-popup .swal2-footer {
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 5px 0 0 0 !important;
+  border-top: none !important;
+}
+
+::ng-deep .modal-custom-cocina-identico .btn-cerrar-identico {
+  font-family: 'Arial', sans-serif !important;
+  font-weight: bold !important;
+  padding: 8px 20px !important;
+  font-size: 0.85rem !important;
+  border-radius: 6px !important;
+  margin: 0 auto !important;
+  display: block !important;
+}
