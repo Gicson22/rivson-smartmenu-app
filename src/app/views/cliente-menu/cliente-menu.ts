@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef, En
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { Firestore, collection, addDoc, query, where, onSnapshot } from '@angular/fire/firestore';
+import { Firestore, collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 import { Producto } from '../../models/pedido';
 
@@ -19,7 +19,8 @@ export interface ItemCarritoCliente {
 
 export interface ItemPedidoEnviado extends ItemCarritoCliente {
   estadoItem: string; 
-  destino: string;    
+  destino: string;
+  idDocumentoPedido: string;
 }
 
 @Component({
@@ -40,6 +41,13 @@ export class ClienteMenu implements OnInit {
   
   numeroMesa: number = 1;
   restaurantId: string = 'moscu';
+  restaurantIconUrl: string = ''; 
+  nombreComercialRestaurante: string = '¡Bienvenidos a mi Picantería!';
+  
+  // ⚡ CONTROL DE SESIÓN ÚNICA POR CLIENTE/TICKET
+  sessionToken: string = '';
+  sesionFinalizadaBloqueada: boolean = false;
+
   productos: Producto[] = [];
   categoriaSeleccionada: string = 'todos';
   
@@ -49,6 +57,7 @@ export class ClienteMenu implements OnInit {
   itemsPedidoEnviado: ItemPedidoEnviado[] = [];
   mostrarModalCarrito: boolean = false;
   pedidoEnviado: boolean = false;
+  cuentaSolicitada: boolean = false;
 
   mostrarModalOpciones: boolean = false;
   productoSeleccionado: Producto | null = null;
@@ -66,13 +75,61 @@ export class ClienteMenu implements OnInit {
       if (params['local']) {
         this.restaurantId = params['local'].trim().toLowerCase();
       }
+      
+      // Inicializar o validar el ticket de sesión del cliente
+      this.inicializarSesionUnica();
     });
 
+    this.cargarLogoRestaurante();
     this.cargarCartaRealFirestore();
     this.escucharPedidosMesaFirestore();
   }
 
+  // ⚡ GENERADOR Y VALIDADOR DE TICKET ÚNICO DE MESA
+  inicializarSesionUnica(): void {
+    const keyToken = `rivson_token_${this.restaurantId}_mesa_${this.numeroMesa}`;
+    const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
+
+    // Si viene directamente de escanear un QR (puedes agregar ?scan=1 en tus QRs o detectar navegación fresca)
+    // Si ya estaba bloqueado por cierre de cuenta, mostramos la pantalla de bloqueo inmediatamente
+    if (localStorage.getItem(keyBloqueo) === 'true') {
+      this.sesionFinalizadaBloqueada = true;
+      this.mostrarAlertaCierreCuenta();
+      return;
+    }
+
+    let tokenGuardado = localStorage.getItem(keyToken);
+    if (!tokenGuardado) {
+      tokenGuardado = 'TKT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      localStorage.setItem(keyToken, tokenGuardado);
+    }
+    this.sessionToken = tokenGuardado;
+  }
+
+  cargarLogoRestaurante(): void {
+    runInInjectionContext(this.injector, () => {
+      const restRef = collection(this.firestore, 'restaurantes');
+      const qRest = query(restRef, where('restaurantId', '==', this.restaurantId));
+
+      onSnapshot(qRest, (snapshot: any) => {
+        if (!snapshot.empty) {
+          const restData = snapshot.docs[0].data();
+          this.restaurantIconUrl = restData['logoUrl'] || '';
+          this.nombreComercialRestaurante = restData['nombreComercial'] || '¡Bienvenidos a mi Picantería!';
+        } else {
+          this.restaurantIconUrl = '';
+          this.nombreComercialRestaurante = '¡Bienvenidos a mi Picantería!';
+        }
+        this.cdr.detectChanges();
+      });
+    });
+  }
+
   abrirResumenMesa(): void {
+    if (this.sesionFinalizadaBloqueada) {
+      this.mostrarAlertaCierreCuenta();
+      return;
+    }
     this.mostrarModalCarrito = true;
     this.granTotalMesaVisual = 0;
     setTimeout(() => {
@@ -86,10 +143,10 @@ export class ClienteMenu implements OnInit {
         const productosRef = collection(this.firestore, 'productos');
         const q = query(productosRef, where('restaurantId', '==', this.restaurantId));
 
-        onSnapshot(q, (snapshot) => {
-          this.productos = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+        onSnapshot(q, (snapshot: any) => {
+          this.productos = snapshot.docs.map((docSnap: any) => ({
+            id: docSnap.id,
+            ...docSnap.data()
           })) as Producto[];
           this.cdr.detectChanges();
         });
@@ -109,26 +166,63 @@ export class ClienteMenu implements OnInit {
           where('numeroMesa', '==', this.numeroMesa)
         );
 
-        onSnapshot(q, (snapshot) => {
-          let listaHistorial: ItemPedidoEnviado[] = [];
+        onSnapshot(q, (snapshot: any) => {
+          let mapaAgrupado = new Map<string, ItemPedidoEnviado>();
+          let hayPedidosActivos = false;
+          let miSesionFuePagada = false;
           
-          snapshot.docs.forEach(docSnap => {
+          snapshot.docs.forEach((docSnap: any) => {
             const data = docSnap.data();
-            const items = data['items'] || [];
-            const destino = data['destino'] || 'cocina';
             const estadoGlobal = data['estado'] || 'solicitado';
+            const tokenDoc = data['sessionToken'] || '';
 
-            items.forEach((item: any) => {
-              listaHistorial.push({
-                ...item,
-                estadoItem: item.estadoItem || estadoGlobal,
-                destino: destino
+            // ⚡ DETECTAR SI LA CUENTA DE ESTE CLIENTE (SU TICKET) ACABA DE SER COBRADA
+            if (estadoGlobal === 'pagado') {
+              if (tokenDoc === this.sessionToken && this.sessionToken !== '') {
+                miSesionFuePagada = true;
+              }
+              return; 
+            }
+
+            // Solo cargamos pedidos activos si pertenecen a la sesión actual (o si no tienen token aún)
+            if (!tokenDoc || tokenDoc === this.sessionToken) {
+              hayPedidosActivos = true;
+              const items = data['items'] || [];
+              const destino = data['destino'] || 'cocina';
+
+              items.forEach((item: any) => {
+                const estadoDelItem = item.estadoItem || estadoGlobal;
+                const firmaItem = `${item.productoId || item.nombre}_${item.tamanioSeleccionado || 'unico'}_${item.nivelPicante || 'ninguno'}_${(item.observacion || '').trim().toLowerCase()}_${estadoDelItem}`;
+
+                if (mapaAgrupado.has(firmaItem)) {
+                  const existente = mapaAgrupado.get(firmaItem)!;
+                  existente.cantidad += Number(item.cantidad || 1);
+                } else {
+                  mapaAgrupado.set(firmaItem, {
+                    ...item,
+                    cantidad: Number(item.cantidad || 1),
+                    estadoItem: estadoDelItem,
+                    destino: destino,
+                    idDocumentoPedido: docSnap.id
+                  });
+                }
               });
-            });
+            }
           });
 
-          this.itemsPedidoEnviado = listaHistorial;
-          if (this.itemsPedidoEnviado.length > 0) {
+          // ⚡ SI EL MOZO COBRÓ SU CUENTA: Bloqueamos la sesión y lanzamos la alerta gigante
+          if (miSesionFuePagada && !hayPedidosActivos && !this.sesionFinalizadaBloqueada) {
+            this.ejecutarCierreYBloqueoCliente();
+            return;
+          }
+
+          this.itemsPedidoEnviado = Array.from(mapaAgrupado.values());
+
+          if (!hayPedidosActivos) {
+            this.itemsPedidoEnviado = [];
+            this.pedidoEnviado = false;
+            this.cuentaSolicitada = false;
+          } else {
             this.pedidoEnviado = true;
           }
           
@@ -140,6 +234,119 @@ export class ClienteMenu implements OnInit {
         });
       } catch (err) {
         console.error('Error escuchando pedidos de mesa:', err);
+      }
+    });
+  }
+
+  // ⚡ EJECUTA EL BLOQUEO DE PANTALLA Y LIMPIEZA DE SESIÓN AL PAGAR
+  private ejecutarCierreYBloqueoCliente(): void {
+    this.sesionFinalizadaBloqueada = true;
+    this.carrito = [];
+    this.itemsPedidoEnviado = [];
+    this.mostrarModalCarrito = false;
+    this.mostrarModalOpciones = false;
+    this.pedidoEnviado = false;
+    this.cuentaSolicitada = false;
+    this.granTotalMesaVisual = 0;
+
+    const keyToken = `rivson_token_${this.restaurantId}_mesa_${this.numeroMesa}`;
+    const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
+    
+    // Marcamos el bloqueo persistente y borramos el token viejo
+    localStorage.setItem(keyBloqueo, 'true');
+    localStorage.removeItem(keyToken);
+
+    this.cdr.detectChanges();
+    this.mostrarAlertaCierreCuenta();
+  }
+
+  // ⚡ ALERTA GIGANTE A PANTALLA COMPLETA DE DESPEDIDA Y BLOQUEO
+  mostrarAlertaCierreCuenta(): void {
+    Swal.fire({
+      icon: 'success',
+      title: `¡Cuenta Cancelada!`,
+      html: `
+        <div style="font-size: 1.05rem; color: #e2e8f0; line-height: 1.5; margin-top: 8px;">
+          <p style="margin-bottom: 12px;">Muchas gracias por tu preferencia en <strong style="color: #38bdf8;">${this.nombreComercialRestaurante}</strong>.</p>
+          <p style="font-size: 0.92rem; color: #94a3b8; margin-bottom: 16px;">Tu sesión en la <strong>Mesa ${this.numeroMesa}</strong> ha finalizado con éxito. ¡Esperamos verte muy pronto!</p>
+          <div style="background: rgba(56, 189, 248, 0.1); border: 1px dashed #38bdf8; padding: 10px; border-radius: 8px; font-size: 0.8rem; color: #38bdf8;">
+            🔒 Para realizar un nuevo consumo, por favor escanea nuevamente el código QR de tu mesa.
+          </div>
+        </div>
+      `,
+      background: '#0f172a',
+      color: '#ffffff',
+      confirmButtonText: 'Entendido, ¡Gracias! 👍',
+      confirmButtonColor: '#10b981',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      backdrop: `rgba(15, 23, 42, 0.96)`,
+      customClass: {
+        popup: 'alerta-pantalla-completa-cliente'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Si le da OK, liberamos el bloqueo local por si es un nuevo cliente escaneando desde el mismo teléfono
+        const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
+        localStorage.removeItem(keyBloqueo);
+        this.sesionFinalizadaBloqueada = false;
+        
+        // Generamos un nuevo token limpio por si vuelve a escanear
+        this.inicializarSesionUnica();
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  solicitarCuentaMozo(): void {
+    if (this.sesionFinalizadaBloqueada) {
+      this.mostrarAlertaCierreCuenta();
+      return;
+    }
+
+    Swal.fire({
+      title: `¿Solicitar Cuenta - Mesa ${this.numeroMesa}?`,
+      text: 'Se le notificará al mozo asignado para que se acerque a cobrar.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, solicitar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#38bdf8'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        this.cuentaSolicitada = true;
+        
+        runInInjectionContext(this.injector, async () => {
+          try {
+            const pedidosRef = collection(this.firestore, 'pedidos');
+            const q = query(
+              pedidosRef, 
+              where('restaurantId', '==', this.restaurantId), 
+              where('numeroMesa', '==', this.numeroMesa)
+            );
+
+            const querySnapshot = await getDocs(q);
+            const promesas = querySnapshot.docs.map((docSnap: any) => {
+              if (docSnap.data()['estado'] !== 'pagado') {
+                const ref = doc(this.firestore, 'pedidos', docSnap.id);
+                return updateDoc(ref, { solicitandoCobro: true });
+              }
+              return Promise.resolve();
+            });
+            await Promise.all(promesas);
+
+          } catch (e) {
+            console.error('Error notificando cobro', e);
+          }
+        });
+
+        Swal.fire({
+          icon: 'success',
+          title: '¡Mozo notificado!',
+          text: 'Por favor espere un momento en su mesa.',
+          timer: 2500,
+          showConfirmButton: false
+        });
       }
     });
   }
@@ -183,6 +390,10 @@ export class ClienteMenu implements OnInit {
   }
 
   abrirModalOpciones(producto: Producto): void {
+    if (this.sesionFinalizadaBloqueada) {
+      this.mostrarAlertaCierreCuenta();
+      return;
+    }
     this.productoSeleccionado = producto;
     this.tamanioSeleccionado = 'personal';
     this.nivelPicanteSeleccionado = 'medio';
@@ -204,18 +415,18 @@ export class ClienteMenu implements OnInit {
   }
 
   agregarAlCarritoConOpciones(): void {
-    if (!this.productoSeleccionado) return;
+    if (!this.productoSeleccionado || this.sesionFinalizadaBloqueada) return;
 
     const precioUnitario = this.calcularPrecioActualModal();
     const tamanio = this.productoSeleccionado.tienePorciones ? this.tamanioSeleccionado : undefined;
     const picante = this.productoSeleccionado.categoria !== 'bebidas' ? this.nivelPicanteSeleccionado : undefined;
-    const obs = this.observacionItem.trim() || undefined;
+    const obs = this.observacionItem.trim().toLowerCase() || undefined;
 
     const itemExistente = this.carrito.find(i => 
       i.productoId === this.productoSeleccionado!.id &&
       i.tamanioSeleccionado === tamanio &&
       i.nivelPicante === picante &&
-      i.observacion === obs
+      (i.observacion || '').trim().toLowerCase() === (obs || '')
     );
 
     if (itemExistente) {
@@ -228,7 +439,7 @@ export class ClienteMenu implements OnInit {
         tamanioSeleccionado: tamanio,
         precioSeleccionado: precioUnitario,
         nivelPicante: picante,
-        observacion: obs,
+        observacion: this.observacionItem.trim() || undefined,
         cantidad: 1
       });
     }
@@ -266,7 +477,7 @@ export class ClienteMenu implements OnInit {
   }
 
   async enviarPedidoNube(): Promise<void> {
-    if (this.carrito.length === 0) return;
+    if (this.carrito.length === 0 || this.sesionFinalizadaBloqueada) return;
 
     const confirmacion = await Swal.fire({
       title: '¿Confirmar y enviar pedido?',
@@ -303,10 +514,12 @@ export class ClienteMenu implements OnInit {
         const itemsParaCocina = carritoLimpio.filter(i => i.categoria !== 'bebidas');
         const itemsParaMozo = carritoLimpio.filter(i => i.categoria === 'bebidas');
 
+        // ⚡ AMARRAMOS EL TOKEN DE SESIÓN AL PEDIDO EN FIRESTORE
         if (itemsParaCocina.length > 0) {
           await addDoc(pedidosRef, {
             restaurantId: this.restaurantId,
             numeroMesa: this.numeroMesa,
+            sessionToken: this.sessionToken,
             destino: 'cocina',
             items: itemsParaCocina,
             total: itemsParaCocina.reduce((acc: number, i: any) => acc + (i.precioSeleccionado * i.cantidad), 0),
@@ -319,6 +532,7 @@ export class ClienteMenu implements OnInit {
           await addDoc(pedidosRef, {
             restaurantId: this.restaurantId,
             numeroMesa: this.numeroMesa,
+            sessionToken: this.sessionToken,
             destino: 'mozo',
             items: itemsParaMozo,
             total: itemsParaMozo.reduce((acc: number, i: any) => acc + (i.precioSeleccionado * i.cantidad), 0),

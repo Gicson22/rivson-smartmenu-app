@@ -13,12 +13,13 @@
       <span class="badge-estado-vivo">🟢 En Línea</span>
     </header>
 
+    <!-- ⚡ PESTAÑAS ACTUALIZADAS: Chau Colegas y Libres, Hola Cobradas -->
     <nav class="tabs-horizontal">
       <button 
         class="tab-btn alerta-tab" 
         [class.active]="filtroMozoTab === 'alertas'" 
         (click)="filtroMozoTab = 'alertas'">
-        🚨 Solicitando Atención <span class="badge-count">{{ contarTab('alertas') }}</span>
+        🚨 Solicitando <span class="badge-count">{{ contarTab('alertas') }}</span>
       </button>
 
       <button 
@@ -30,16 +31,9 @@
 
       <button 
         class="tab-btn" 
-        [class.active]="filtroMozoTab === 'colegas'" 
-        (click)="filtroMozoTab = 'colegas'">
-        🔒 Colegas <span class="badge-count">{{ contarTab('colegas') }}</span>
-      </button>
-
-      <button 
-        class="tab-btn" 
-        [class.active]="filtroMozoTab === 'libres'" 
-        (click)="filtroMozoTab = 'libres'">
-        🟢 Libres <span class="badge-count">{{ contarTab('libres') }}</span>
+        [class.active]="filtroMozoTab === 'cobradas'" 
+        (click)="filtroMozoTab = 'cobradas'">
+        🧾 Cobradas <span class="badge-count">{{ contarTab('cobradas') }}</span>
       </button>
     </nav>
   </div>
@@ -47,6 +41,7 @@
   <main class="contenido-mozo">
     
     <div class="lista-mesas-mozo">
+      <!-- ⚡ LISTADO DE MESAS ACTIVAS O EN ALERTA -->
       <div *ngFor="let mesa of mesasFiltradas" class="card-mesa-mozo" [ngClass]="{'mia': mesa.mozoAsignado === nombreMozoActual && mesa.itemsEnMesa.length > 0, 'alerta-card': !mesa.mozoAsignado && mesa.itemsEnMesa.length > 0, 'ajena': mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual}">
         
         <div class="card-mesa-header">
@@ -81,6 +76,11 @@
               <span class="total-mesa-tag">Total: S/ {{ mesa.totalMesa.toFixed(2)}}</span>
             </div>
 
+            <!-- ⚡ AVISO VISUAL SI EL CLIENTE PIDIÓ LA CUENTA -->
+            <div *ngIf="mesa.solicitandoCobro" class="alerta-cobro-activa-banner" style="background: rgba(239, 68, 68, 0.2); border: 1px dashed #ef4444; padding: 6px; border-radius: 6px; text-align: center;">
+              <span style="font-size: 0.75rem; color: #f87171; font-weight: bold;">💳 ¡El cliente está solicitando su cuenta!</span>
+            </div>
+
             <div class="alerta-info-row" style="margin-top: 4px;">
               <span class="txt-alerta-info" style="color: #38bdf8;">
                 {{ mesa.mozoAsignado === nombreMozoActual ? '⭐ Tus consumos activos' : '🔒 Atendido por ' + mesa.mozoAsignado }} 
@@ -111,8 +111,31 @@
 
       </div>
 
-      <div *ngIf="mesasFiltradas.length === 0" class="sin-pedidos">
+      <!-- ⚡ TARJETAS PARA LA PESTAÑA DE MESA COBRADAS (HISTORIAL) -->
+      <div *ngIf="filtroMozoTab === 'cobradas'">
+        <div *ngFor="let cobrada of mesasCobradasHistorial" class="card-mesa-mozo" style="border-color: #10b981; margin-bottom: 12px;">
+          <div class="card-mesa-header" style="background: #064e3b;">
+            <span class="tag-mesa" style="color: #34d399;">MESA N° {{ cobrada.numeroMesa }} (Cerrada)</span>
+            <span class="badge-duenio" style="background: #10b981; color: white;">🧾 Pagado</span>
+          </div>
+          <div class="card-mesa-body">
+            <div class="alerta-info-row">
+              <span class="txt-alerta-info" style="color: #34d399;">Total Cancelado:</span>
+              <span class="total-alerta-preview">S/ {{ cobrada.total.toFixed(2) }}</span>
+            </div>
+            <button class="btn-tomar-mesa-urgente" style="background: #0284c7; width: 100%; margin-top: 6px;" (click)="verVoucherCobrado(cobrada)">
+              🧾 Ver / Imprimir Voucher Digital
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div *ngIf="mesasFiltradas.length === 0 && filtroMozoTab !== 'cobradas'" class="sin-pedidos">
         🎉 No hay mesas con actividad en esta sección.
+      </div>
+
+      <div *ngIf="filtroMozoTab === 'cobradas' && mesasCobradasHistorial.length === 0" class="sin-pedidos">
+        🧾 Aún no hay cuentas cobradas en este turno.
       </div>
 
     </div>

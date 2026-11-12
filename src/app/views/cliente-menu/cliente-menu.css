@@ -781,3 +781,34 @@
   justify-content: center;
   gap: 6px;
 }
+
+.btn-pedir-cuenta-modal {
+  background: linear-gradient(135deg, #059669, #10b981); /* ⚡ Verde esmeralda vivo y elegante */
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 3px 6px rgba(16, 185, 129, 0.3);
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.btn-pedir-cuenta-modal:active {
+  transform: scale(0.96);
+}
+
+/* Bloqueo total de pantalla al cerrar la cuenta */
+.alerta-pantalla-completa-cliente {
+  width: 92vw !important;
+  max-width: 440px !important;
+  min-height: 60vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  border: 2px solid #38bdf8 !important;
+  border-radius: 20px !important;
+  box-shadow: 0 0 40px rgba(56, 189, 248, 0.25) !important;
+}

@@ -1,8 +1,10 @@
 <div class="menu-container">
-  <!-- Header Fijo con Indicador de Mesa -->
   <header class="header">
-    <div class="logo-info">
-      <h1>Picantería Moscú 🥘</h1>
+    <div class="logo-info" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo Local" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; background: #1e293b;" />
+        <h1>{{ nombreComercialRestaurante }}</h1>
+      </div>
       <span class="badge-mesa">Mesa {{ numeroMesa }}</span>
     </div>
   </header>
@@ -141,8 +143,17 @@
 
       <div class="modal-body">
         <div *ngIf="itemsPedidoEnviado.length > 0" class="seccion-historial" style="margin-bottom: 16px;">
-          <p class="subtitulo-modal" style="color: #38bdf8; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">
-            🔥 Estado de tu Consumo en Mesa:</p>
+          <!-- <p class="subtitulo-modal" style="color: #38bdf8; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">
+            🔥 Estado de tu Consumo en Mesa:</p> -->
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <p class="subtitulo-modal" style="color: #38bdf8; font-size: 0.78rem; font-weight: bold; margin: 0;">
+              🔥 Consumo en Mesa:
+            </p>
+            <button class="btn-pedir-cuenta-modal" (click)="solicitarCuentaMozo()">
+              💳 Pedir Cuenta
+            </button>
+          </div>
 
           <div class="categorias-estados-modal">
             <button type="button" [class.active]="filtroEstadoModal === 'solicitado'" (click)="filtrarEstado('solicitado')">
