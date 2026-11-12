@@ -56,11 +56,12 @@
         ✅ Listos <span class="badge-count">{{ contarEstado('listo') }}</span>
       </button>
 
+      <!-- ⚡ NUEVA PESTAÑA ENTREGADOS EN LUGAR DE TODOS -->
       <button 
         class="tab-btn" 
-        [class.active]="filtroEstado === 'todos'" 
-        (click)="filtroEstado = 'todos'">
-        📋 Todos
+        [class.active]="filtroEstado === 'entregado'" 
+        (click)="filtroEstado = 'entregado'">
+        🍽️ Entregados <span class="badge-count">{{ contarEstado('entregado') }}</span>
       </button>
     </nav>
   </div>
@@ -133,6 +134,13 @@
                   <div *ngIf="it.estadoItem === 'listo'" style="width: 100%; text-align: right;">
                     <span style="font-size: 0.75rem; color: #34d399; font-weight: bold;">
                       ✔️ Listo en barra (Chef: {{ it.cocineroAsignado }})
+                    </span>
+                  </div>
+
+                  <!-- Si el plato ya fue 'entregado' por el mozo -->
+                  <div *ngIf="it.estadoItem === 'entregado'" style="width: 100%; text-align: right;">
+                    <span style="font-size: 0.75rem; color: #c084fc; font-weight: bold;">
+                      🍽️ Entregado en mesa (Chef: {{ it.cocineroAsignado || 'N/A' }})
                     </span>
                   </div>
 

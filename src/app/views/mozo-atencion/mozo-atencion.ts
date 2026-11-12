@@ -26,6 +26,7 @@ export interface ItemMesaMozo {
   tamanioSeleccionado?: string;
   nivelPicante?: string;
   observacion?: string;
+  cocineroAsignado?: string;
 }
 
 export interface MesaSalon {
@@ -191,7 +192,8 @@ export class MozoAtencion implements OnInit, OnDestroy {
                 destino: item.destino || data['destino'] || 'cocina',
                 tamanioSeleccionado: item.tamanioSeleccionado,
                 nivelPicante: item.nivelPicante,
-                observacion: item.observacion
+                observacion: item.observacion,
+                cocineroAsignado: item.cocineroAsignado || null
               });
             });
           });
@@ -416,6 +418,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
         .map(it => {
           const esElItemModificado = (it.nombre === item.nombre && it.precioSeleccionado === item.precioSeleccionado);
           const nuevoEstadoItem = esElItemModificado ? 'entregado' : (it.estado || 'solicitado');
+          const chefAsignado = it.cocineroAsignado || item.cocineroAsignado || (it as any).cocineroAsignado || null;
           
           return {
             productoId: (it as any).productoId || '',
@@ -428,7 +431,8 @@ export class MozoAtencion implements OnInit, OnDestroy {
             destino: it.destino || 'mozo',
             tamanioSeleccionado: it.tamanioSeleccionado || null,
             nivelPicante: it.nivelPicante || null,
-            observacion: it.observacion || null
+            observacion: it.observacion || null,
+            cocineroAsignado: chefAsignado
           };
         });
 

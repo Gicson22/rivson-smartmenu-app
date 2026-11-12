@@ -33,7 +33,7 @@ export interface ComandaCocina {
   idComanda: string;
   numeroMesa: number | string;
   items: ItemComanda[];
-  estado: 'solicitado' | 'preparando' | 'listo';
+  estado: 'solicitado' | 'preparando' | 'listo' | 'entregado';
   horaPedido: string;
   timestamp?: number;
 }
@@ -63,7 +63,8 @@ export class CocinaComandas implements OnInit, OnDestroy {
   private subCocineros?: Unsubscribe;
   private subRestaurante?: Unsubscribe;
 
-  filtroEstado: 'todos' | 'solicitado' | 'preparando' | 'listo' = 'solicitado';
+  // ⚡ CAMBIAMOS 'todos' POR 'entregado' COMO PESTAÑA NUEVA
+  filtroEstado: 'solicitado' | 'preparando' | 'listo' | 'entregado' = 'solicitado';
 
   restaurantId: string = 'moscu';
   logoUrl: string = '';
@@ -133,15 +134,18 @@ export class CocinaComandas implements OnInit, OnDestroy {
 
         const itemsConEstado = itemsBD.map((it: any) => ({
           ...it,
-          estadoItem: it.estadoItem || estadoGlobalDoc,
+          estadoItem: it.estadoItem || it.estado || estadoGlobalDoc,
           cocineroAsignado: it.cocineroAsignado || undefined
         }));
 
-        let estadoCalculado: 'solicitado' | 'preparando' | 'listo' = estadoGlobalDoc;
+        let estadoCalculado: 'solicitado' | 'preparando' | 'listo' | 'entregado' = estadoGlobalDoc;
+        const todosEntregados = itemsConEstado.length > 0 && itemsConEstado.every((i: any) => i.estadoItem === 'entregado');
         const todosListos = itemsConEstado.length > 0 && itemsConEstado.every((i: any) => i.estadoItem === 'listo' || i.estadoItem === 'entregado');
         const algunPreparando = itemsConEstado.some((i: any) => i.estadoItem === 'preparando');
 
-        if (todosListos) {
+        if (todosEntregados) {
+          estadoCalculado = 'entregado';
+        } else if (todosListos) {
           estadoCalculado = 'listo';
         } else if (algunPreparando) {
           estadoCalculado = 'preparando';
@@ -183,48 +187,45 @@ export class CocinaComandas implements OnInit, OnDestroy {
   get comandasFiltradas(): ComandaCocina[] {
     let lista = [...this.comandasCola];
     
-    if (this.filtroEstado !== 'todos') {
-      lista = lista.filter(c => 
-        c.items.some(i => {
-          const estadoItem = i.estadoItem || 'solicitado';
-          if (this.filtroEstado === 'listo') {
-            return estadoItem === 'listo' || estadoItem === 'entregado';
-          }
-          return estadoItem === this.filtroEstado;
-        })
-      );
-    }
+    lista = lista.filter(c => 
+      c.items.some(i => {
+        const estadoItem = i.estadoItem || 'solicitado';
+        if (this.filtroEstado === 'listo') {
+          return estadoItem === 'listo';
+        }
+        if (this.filtroEstado === 'entregado') {
+          return estadoItem === 'entregado';
+        }
+        return estadoItem === this.filtroEstado;
+      })
+    );
+
     return lista.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
   }
 
   getItemsFiltrados(comanda: ComandaCocina): ItemComanda[] {
-    if (this.filtroEstado === 'todos') {
-      return comanda.items;
-    }
     return comanda.items.filter(i => {
       const estadoItem = i.estadoItem || 'solicitado';
       if (this.filtroEstado === 'listo') {
-        return estadoItem === 'listo' || estadoItem === 'entregado';
+        return estadoItem === 'listo';
+      }
+      if (this.filtroEstado === 'entregado') {
+        return estadoItem === 'entregado';
       }
       return estadoItem === this.filtroEstado;
     });
   }
 
-  // ⚡ MÉTODO INTELIGENTE PARA MOSTRAR EL ESTADO REAL DE LA TARJETA SEGÚN LA PESTAÑA ACTIVA
   obtenerEstadoVisualComanda(comanda: ComandaCocina): string {
-    if (this.filtroEstado !== 'todos') {
-      if (this.filtroEstado === 'solicitado') return '⏳ EN COLA';
-      if (this.filtroEstado === 'preparando') return '🔥 PREPARANDO';
-      if (this.filtroEstado === 'listo') return '✅ LISTO';
-    }
-    return comanda.estado === 'solicitado' ? '⏳ EN COLA' : comanda.estado === 'preparando' ? '🔥 PREPARANDO' : '✅ LISTO';
+    if (this.filtroEstado === 'solicitado') return '⏳ EN COLA';
+    if (this.filtroEstado === 'preparando') return '🔥 PREPARANDO';
+    if (this.filtroEstado === 'listo') return '✅ LISTO';
+    if (this.filtroEstado === 'entregado') return '🍽️ ENTREGADO';
+    return '⏳ EN COLA';
   }
 
   obtenerClaseEstadoVisual(comanda: ComandaCocina): string {
-    if (this.filtroEstado !== 'todos') {
-      return this.filtroEstado;
-    }
-    return comanda.estado;
+    return this.filtroEstado;
   }
 
   contarEstado(estado: string): number {
@@ -235,9 +236,12 @@ export class CocinaComandas implements OnInit, OnDestroy {
       return this.comandasCola.reduce((acc, c) => acc + c.items.filter(i => i.estadoItem === 'preparando').length, 0);
     }
     if (estado === 'listo') {
-      return this.comandasCola.reduce((acc, c) => acc + c.items.filter(i => i.estadoItem === 'listo' || i.estadoItem === 'entregado').length, 0);
+      return this.comandasCola.reduce((acc, c) => acc + c.items.filter(i => i.estadoItem === 'listo').length, 0);
     }
-    return this.comandasCola.length;
+    if (estado === 'entregado') {
+      return this.comandasCola.reduce((acc, c) => acc + c.items.filter(i => i.estadoItem === 'entregado').length, 0);
+    }
+    return 0;
   }
 
   async tomarPlatoIndividual(comanda: ComandaCocina, itemOriginal: ItemComanda): Promise<void> {
@@ -261,7 +265,7 @@ export class CocinaComandas implements OnInit, OnDestroy {
       const algunPreparando = comanda.items.some(i => i.estadoItem === 'preparando');
       const todosListos = comanda.items.every(i => i.estadoItem === 'listo' || i.estadoItem === 'entregado');
 
-      let nuevoEstadoGlobal: 'solicitado' | 'preparando' | 'listo' = 'solicitado';
+      let nuevoEstadoGlobal: any = 'solicitado';
       if (todosListos) nuevoEstadoGlobal = 'listo';
       else if (algunPreparando) nuevoEstadoGlobal = 'preparando';
 
@@ -270,7 +274,8 @@ export class CocinaComandas implements OnInit, OnDestroy {
           nombre: it.nombre,
           cantidad: it.cantidad,
           precioSeleccionado: it.precioSeleccionado,
-          estadoItem: it.estadoItem || 'solicitado'
+          estadoItem: it.estadoItem || 'solicitado',
+          cocineroAsignado: it.cocineroAsignado || cocineroElegido.nombre
         };
         if (it.categoria) itemLimpio.categoria = it.categoria;
         if (it.tamanioSeleccionado) itemLimpio.tamanioSeleccionado = it.tamanioSeleccionado;
@@ -306,7 +311,7 @@ export class CocinaComandas implements OnInit, OnDestroy {
       const todosListos = comanda.items.every(i => i.estadoItem === 'listo' || i.estadoItem === 'entregado');
       const algunPreparando = comanda.items.some(i => i.estadoItem === 'preparando');
 
-      let nuevoEstadoGlobal: 'solicitado' | 'preparando' | 'listo' = 'solicitado';
+      let nuevoEstadoGlobal: any = 'solicitado';
       if (todosListos) nuevoEstadoGlobal = 'listo';
       else if (algunPreparando) nuevoEstadoGlobal = 'preparando';
 
@@ -315,7 +320,8 @@ export class CocinaComandas implements OnInit, OnDestroy {
           nombre: it.nombre,
           cantidad: it.cantidad,
           precioSeleccionado: it.precioSeleccionado,
-          estadoItem: it.estadoItem || 'solicitado'
+          estadoItem: it.estadoItem || 'solicitado',
+          cocineroAsignado: it.cocineroAsignado || null
         };
         if (it.categoria) itemLimpio.categoria = it.categoria;
         if (it.tamanioSeleccionado) itemLimpio.tamanioSeleccionado = it.tamanioSeleccionado;
