@@ -56,7 +56,7 @@
         ✅ Listos <span class="badge-count">{{ contarEstado('listo') }}</span>
       </button>
 
-      <!-- ⚡ NUEVA PESTAÑA ENTREGADOS EN LUGAR DE TODOS -->
+      <!-- ⚡ PESTAÑA ENTREGADOS -->
       <button 
         class="tab-btn" 
         [class.active]="filtroEstado === 'entregado'" 
@@ -75,9 +75,6 @@
           <div class="comanda-header">
             <span class="mesa-tag">MESA N° {{ cmd.numeroMesa }}</span>
             <span class="hora-tag">🕒 {{ cmd.horaPedido }}</span>
-            <span class="estado-badge" [ngClass]="obtenerClaseEstadoVisual(cmd)">
-              {{ obtenerEstadoVisualComanda(cmd) }}
-            </span>
           </div>
 
           <div class="comanda-body">
@@ -137,10 +134,13 @@
                     </span>
                   </div>
 
-                  <!-- Si el plato ya fue 'entregado' por el mozo -->
-                  <div *ngIf="it.estadoItem === 'entregado'" style="width: 100%; text-align: right;">
-                    <span style="font-size: 0.75rem; color: #c084fc; font-weight: bold;">
-                      🍽️ Entregado en mesa (Chef: {{ it.cocineroAsignado || 'N/A' }})
+                  <!-- Si el plato ya fue 'entregado' por el mozo (Estilo unificado) -->
+                  <div *ngIf="it.estadoItem === 'entregado'" style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 0.72rem; color: #94a3b8;">
+                      Chef: {{ it.cocineroAsignado || 'N/A' }}
+                    </span>
+                    <span class="estado-entregado">
+                      🍽️ Entregado
                     </span>
                   </div>
 

@@ -63,7 +63,6 @@ export class CocinaComandas implements OnInit, OnDestroy {
   private subCocineros?: Unsubscribe;
   private subRestaurante?: Unsubscribe;
 
-  // ⚡ CAMBIAMOS 'todos' POR 'entregado' COMO PESTAÑA NUEVA
   filtroEstado: 'solicitado' | 'preparando' | 'listo' | 'entregado' = 'solicitado';
 
   restaurantId: string = 'moscu';

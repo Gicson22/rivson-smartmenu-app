@@ -35,7 +35,7 @@ export interface MesaSalon {
   estadoMesa: 'libre' | 'atendiendo' | 'llamando' | 'pagado';
   itemsEnMesa: ItemMesaMozo[];
   totalMesa: number;
-  solicitandoCobro?: boolean; // ⚡ Bandera para detectar cuando pide cuenta
+  solicitandoCobro?: boolean;
 }
 
 export interface MesaCobradaHistorial {
@@ -67,12 +67,10 @@ export class MozoAtencion implements OnInit, OnDestroy {
   restaurantId: string = 'moscu';
   restaurantIconUrl: string = '';
   
-  // ⚡ Pestañas actualizadas (chau colegas/libres, hola cobradas)
   filtroMozoTab: 'mis-mesas' | 'cobradas' | 'alertas' = 'alertas';
   mesasSalon: MesaSalon[] = [];
   mesasCobradasHistorial: MesaCobradaHistorial[] = [];
   
-  // RASTREAR MODAL ABIERTO EN TIEMPO REAL
   mesaModalAbierta: MesaSalon | null = null;
   private mesasConAlertaCobroEmitida: Set<number> = new Set();
 
@@ -170,7 +168,22 @@ export class MozoAtencion implements OnInit, OnDestroy {
             const mozoEnBD = data['mozoAsignado'] || null;
             const solicitandoCobro = data['solicitandoCobro'] || false;
 
-            if (estadoGlobal === 'pagado') return;
+            if (estadoGlobal === 'pagado') {
+              const yaExisteEnHistorial = this.mesasCobradasHistorial.some(h => h.numeroMesa === numMesa && h.total === totalDoc);
+              if (!yaExisteEnHistorial) {
+                const ahora = new Date();
+                const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+                const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                this.mesasCobradasHistorial.unshift({
+                  numeroMesa: numMesa,
+                  total: totalDoc,
+                  items: items,
+                  fecha: `${fechaCorta} - ${horaCorta}`
+                });
+              }
+              return;
+            }
 
             let mesaEncontrada = this.mesasSalon.find(m => m.numeroMesa === numMesa);
             if (!mesaEncontrada) {
@@ -192,7 +205,6 @@ export class MozoAtencion implements OnInit, OnDestroy {
             if (solicitandoCobro) {
               mesaEncontrada.solicitandoCobro = true;
 
-              // ⚡ ALERTA INELUDIBLE EN TODA LA PANTALLA SI EL CLIENTE PIDE CUENTA Y ES SU MESERO
               if (mozoEnBD === this.nombreMozoActual && !this.mesasConAlertaCobroEmitida.has(numMesa)) {
                 this.mesasConAlertaCobroEmitida.add(numMesa);
                 
@@ -514,7 +526,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
     } else if (this.filtroMozoTab === 'mis-mesas') {
       return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual && m.itemsEnMesa.length > 0);
     }
-    return this.mesasSalon;
+    return [];
   }
 
   contarTab(tipo: string): number {
@@ -525,6 +537,27 @@ export class MozoAtencion implements OnInit, OnDestroy {
   }
 
   async cobrarMesa(mesa: MesaSalon): Promise<void> {
+    if (!mesa.itemsEnMesa || mesa.itemsEnMesa.length === 0) return;
+
+    // ⚡ VALIDACIÓN: REVISAR SI TODOS LOS ÍTEMS DE LA MESA ESTÁN ENTREGADOS
+    const hayPendientesDeEntrega = mesa.itemsEnMesa.some(item => {
+      const estado = (item.estado || '').toLowerCase();
+      return estado !== 'entregado' && estado !== 'servido' && estado !== 'despachado' && estado !== 'cancelado';
+    });
+
+    if (hayPendientesDeEntrega) {
+      Swal.fire({
+        icon: 'warning',
+        title: `⚠️ No se puede cobrar la Mesa N° ${mesa.numeroMesa}`,
+        text: 'Aún hay platos o bebidas pendientes por entregar en esta mesa. Debes marcar todos los ítems como entregados antes de procesar el cobro.',
+        confirmButtonText: 'Entendido 👍',
+        confirmButtonColor: '#f59e0b',
+        background: '#0f172a',
+        color: '#ffffff'
+      });
+      return; 
+    }
+
     const confirm = await Swal.fire({
       title: `¿Cobrar Mesa N° ${mesa.numeroMesa}?`,
       text: `El total a cancelar es S/ ${mesa.totalMesa.toFixed(2)}. Esto cerrará la cuenta.`,
@@ -532,12 +565,17 @@ export class MozoAtencion implements OnInit, OnDestroy {
       showCancelButton: true,
       confirmButtonText: 'Sí, ¡Cobrar y Cerrar!',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#10b981'
+      confirmButtonColor: '#10b981',
+      background: '#0f172a',
+      color: '#ffffff'
     });
 
     if (!confirm.isConfirmed) return;
 
     try {
+      const itemsCopia = JSON.parse(JSON.stringify(mesa.itemsEnMesa));
+      const totalCopia = mesa.totalMesa;
+
       const promesas = mesa.itemsEnMesa.map(i => {
         const ref = doc(this.firestore, 'pedidos', i.idDocumentoPedido);
         return updateDoc(ref, { estado: 'pagado', solicitandoCobro: false });
@@ -545,12 +583,17 @@ export class MozoAtencion implements OnInit, OnDestroy {
 
       await Promise.all(promesas);
 
-      // Guardar en el historial de cobradas del turno
+      // 🕒 Formato compacto: Fecha corta + Hora (Ej: 13/11 - 19:07)
+      const ahora = new Date();
+      const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+      const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const fechaHoraCompacta = `${fechaCorta} - ${horaCorta}`;
+
       this.mesasCobradasHistorial.unshift({
         numeroMesa: mesa.numeroMesa,
-        total: mesa.totalMesa,
-        items: [...mesa.itemsEnMesa],
-        fecha: new Date().toLocaleTimeString()
+        total: totalCopia,
+        items: itemsCopia,
+        fecha: fechaHoraCompacta
       });
 
       mesa.mozoAsignado = null;
@@ -567,7 +610,9 @@ export class MozoAtencion implements OnInit, OnDestroy {
         title: '¡Mesa Cobrada con Éxito!',
         text: 'La cuenta ha sido cancelada y la mesa se encuentra libre nuevamente.',
         confirmButtonText: 'OK',
-        confirmButtonColor: '#10b981'
+        confirmButtonColor: '#10b981',
+        background: '#0f172a',
+        color: '#ffffff'
       });
 
     } catch (err) {
@@ -576,30 +621,145 @@ export class MozoAtencion implements OnInit, OnDestroy {
         icon: 'error',
         title: 'Error',
         text: 'No se pudo procesar el cobro.',
-        confirmButtonText: 'OK'
+        confirmButtonText: 'OK',
+        background: '#0f172a',
+        color: '#ffffff'
       });
     }
   }
 
   verVoucherCobrado(cobrada: MesaCobradaHistorial): void {
+    const fechaObj = new Date();
+    const opcionesFecha: Intl.DateTimeFormatOptions = { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' };
+    const fechaFormateada = fechaObj.toLocaleDateString('es-PE', opcionesFecha);
+    const fechaLid = fechaFormateada.charAt(0).toUpperCase() + fechaFormateada.slice(1);
+
+    let htmlItems = '<div style="text-align: left; background: #1e293b; padding: 10px; border-radius: 6px; font-size: 0.8rem; color: #fff; max-height: 200px; overflow-y: auto; margin-bottom: 8px;">';
+    
+    if (cobrada.items && cobrada.items.length > 0) {
+      cobrada.items.forEach(i => {
+        const subtotal = i.precioSeleccionado * i.cantidad;
+        htmlItems += `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; border-bottom: 1px dashed #334155; padding-bottom: 4px;">
+            <div>
+              <strong style="color: #38bdf8;">${i.cantidad}x</strong> ${i.nombre}
+              ${i.tamanioSeleccionado ? `<span style="font-size: 0.68rem; color: #fbbf24;">(${i.tamanioSeleccionado})</span>` : ''}
+            </div>
+            <div style="color: #34d399; font-weight: bold;">S/ ${subtotal.toFixed(2)}</div>
+          </div>
+        `;
+      });
+    } else {
+      htmlItems += '<div style="text-align: center; color: #94a3b8;">Sin ítems registrados.</div>';
+    }
+    htmlItems += '</div>';
+
     Swal.fire({
       title: `🧾 Voucher - Mesa Nº ${cobrada.numeroMesa}`,
       html: `
-        <div style="text-align: left; background: #1e293b; padding: 10px; border-radius: 6px; font-size: 0.8rem; color: #fff;">
-          <p><b>Hora de pago:</b> ${cobrada.fecha}</p>
-          <hr style="border-color: #334155;">
-          ${cobrada.items.map(i => `<div style="display:flex; justify-content:space-between; margin-bottom: 4px;"><span>${i.cantidad}x ${i.nombre}</span><span>S/ ${(i.precioSeleccionado * i.cantidad).toFixed(2)}</span></div>`).join('')}
-          <hr style="border-color: #334155;">
-          <div style="display:flex; justify-content:space-between; font-weight:bold; color:#34d399; font-size: 0.9rem;">
+        <div id="area-impresion-voucher" style="text-align: left; font-size: 0.82rem; color: #cbd5e1;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.78rem; color: #94a3b8; background: #0f172a; padding: 6px 8px; border-radius: 4px;">
+            <span>📅 ${fechaLid}</span>
+            <span>🕒 ${cobrada.fecha}</span>
+          </div>
+          ${htmlItems}
+          <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 8px; border-radius: 6px; font-weight:bold; color:#34d399; font-size: 0.95rem;">
             <span>TOTAL PAGADO:</span>
             <span>S/ ${cobrada.total.toFixed(2)}</span>
           </div>
         </div>
       `,
-      confirmButtonText: 'Cerrar',
+      showCancelButton: true,
+      confirmButtonText: '🖨️ Imprimir Voucher',
       confirmButtonColor: '#0284c7',
+      cancelButtonText: 'Cerrar',
+      cancelButtonColor: '#334155',
       background: '#0f172a',
-      color: '#fff'
+      color: '#fff',
+      width: '420px'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.ejecutarImpresionVoucher(cobrada, fechaLid);
+      }
     });
+  }
+
+  private ejecutarImpresionVoucher(cobrada: MesaCobradaHistorial, fechaStr: string): void {
+    let contenidoItemsPrint = '';
+    cobrada.items.forEach(i => {
+      contenidoItemsPrint += `
+        <tr>
+          <td style="padding: 2px 0; border-bottom: 1px dashed #000; font-size: 11px;">${i.cantidad}x ${i.nombre} ${i.tamanioSeleccionado ? '(' + i.tamanioSeleccionado + ')' : ''}</td>
+          <td style="text-align: right; padding: 2px 0; border-bottom: 1px dashed #000; font-size: 11px;">S/ ${(i.precioSeleccionado * i.cantidad).toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    const ventanaPrint = window.open('', '_print', 'height=700,width=450');
+    if (ventanaPrint) {
+      ventanaPrint.document.write(`
+        <html>
+          <head>
+            <title>Ticket - Mesa N° ${cobrada.numeroMesa}</title>
+            <style>
+              @page {
+                size: 80mm 150mm;
+                margin: 0;
+              }
+              html, body {
+                width: 76mm;
+                margin: 0 auto;
+                padding: 4mm 0;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 11px;
+                color: #000;
+                background: #fff;
+              }
+              .text-center { text-align: center; }
+              .bold { font-weight: bold; }
+              table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+              .linea { border: 0; border-top: 1px dashed #000; margin: 4px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="text-center bold" style="font-size: 13px;">RESTAURANTE MOSCÚ</div>
+            <div class="text-center" style="font-size: 9px; margin-bottom: 4px;">Comprobante de Consumo</div>
+            <hr class="linea">
+            <div style="font-size: 10px;"><b>Mesa N°:</b> ${cobrada.numeroMesa}</div>
+            <div style="font-size: 10px;"><b>Mozo:</b> ${this.nombreMozoActual}</div>
+            <div style="font-size: 10px;"><b>Fecha:</b> ${fechaStr}</div>
+            <div style="font-size: 10px;"><b>Hora:</b> ${cobrada.fecha}</div>
+            <hr class="linea">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align: left; font-size: 10px;">Descripción</th>
+                  <th style="text-align: right; font-size: 10px;">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${contenidoItemsPrint}
+              </tbody>
+            </table>
+            
+            <div style="margin-top: 6px; border-top: 1.5px solid #000; border-bottom: 1.5px solid #000; padding: 3px 0; display: flex; justify-content: space-between; font-size: 12px;" class="bold">
+              <span>TOTAL:</span>
+              <span>S/ ${cobrada.total.toFixed(2)}</span>
+            </div>
+
+            <div class="text-center" style="margin-top: 8px; font-size: 8.5px;">
+              ¡Gracias por su preferencia!<br>Conserve su ticket
+            </div>
+          </body>
+        </html>
+      `);
+      ventanaPrint.document.close();
+      ventanaPrint.focus();
+      
+      setTimeout(() => {
+        ventanaPrint.print();
+        ventanaPrint.close();
+      }, 250);
+    }
   }
 }

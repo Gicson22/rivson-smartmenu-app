@@ -193,6 +193,7 @@
 .card-comanda.solicitado { border-color: #3b82f6; }
 .card-comanda.preparando { border-color: #f59e0b; }
 .card-comanda.listo { border-color: #10b981; }
+.card-comanda.entregado { border-color: #8b5cf6; opacity: 0.85; }
 
 .comanda-header {
   background: #0f172a;
@@ -216,6 +217,23 @@
 .estado-badge.solicitado { background: #1e3a8a; color: #93c5fd; }
 .estado-badge.preparando { background: #78350f; color: #fbbf24; }
 .estado-badge.listo { background: #064e3b; color: #34d399; }
+
+/* 🍽️ ESTILO UNIFICADO DE ENTREGADO (Idéntico a Mozo y Cliente) */
+.estado-badge.entregado,
+.estado-entregado {
+  background-color: rgba(139, 92, 246, 0.2) !important;
+  border: 1px solid #8b5cf6 !important;
+  color: #c084fc !important;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: bold;
+  min-width: 95px;
+  text-align: center;
+}
 
 .comanda-body {
   padding: 12px;
@@ -316,7 +334,7 @@
   font-size: 0.85rem !important;
   outline: none;
   cursor: pointer;
-  appearance: none; /* Elimina la flecha fea nativa en algunos navegadores */
+  appearance: none;
   background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3Cpolyline points='6 9 12 15 18 9'%3e%3C/polyline%3e%3C/svg%3e");
   background-repeat: no-repeat;
   background-position: right 10px center;
@@ -334,7 +352,6 @@
   padding: 8px;
 }
 
-/* Estilos detallados para los ítems en la tarjeta de cocina */
 .items-lista {
   margin: 0;
   padding: 0;
@@ -378,16 +395,15 @@
 }
 
 .tag-aji {
-  color: #fbbf24; /* Amarillo claro para resaltar el picante */
+  color: #fbbf24;
   font-weight: 600;
 }
 
 .tag-obs {
-  color: #c084fc; /* Morado claro para las observaciones */
+  color: #c084fc;
   font-style: italic;
 }
 
-/* 🟢 ESTILOS GLOBALES IDÉNTICOS AL MODAL DEL MOZO PARA SWEETALERT */
 ::ng-deep .modal-custom-cocina-identico {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
   border: 1px solid #334155 !important;

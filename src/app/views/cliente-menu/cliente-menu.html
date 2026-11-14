@@ -1,11 +1,25 @@
 <div class="menu-container">
   <header class="header">
-    <div class="logo-info" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+    <!-- Fila 1: Logo, Nombre y Mesa -->
+    <div class="logo-info">
       <div style="display: flex; align-items: center; gap: 10px;">
-        <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo Local" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; background: #1e293b;" />
+        <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo Local" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; background: #1e293b;" />
         <h1>{{ nombreComercialRestaurante }}</h1>
       </div>
       <span class="badge-mesa">Mesa {{ numeroMesa }}</span>
+    </div>
+
+    <!-- Línea punteada fina de separación -->
+    <div class="header-divider-dashed"></div>
+
+    <!-- Fila 2: Indicador de Rol (Master o Visor) -->
+    <div *ngIf="esMaster" class="rol-status-row master-row">
+      <span>👑 Estás en control (Anfitrión / Master)</span>
+    </div>
+
+    <div *ngIf="!esMaster" class="rol-status-row visor-row">
+      <span>👀 Modo Visor (Solo lectura)</span>
+      <button class="btn-solicitar-control" (click)="solicitarControlMesa()">👑 Pedir Control</button>
     </div>
   </header>
 
@@ -41,7 +55,7 @@
           </ng-template>
         </div>
 
-        <button class="btn-agregar-card">+ Agregar</button>
+        <button class="btn-agregar-card">{{ esMaster ? '+ Agregar' : '👀 Ver / Detalle' }}</button>
       </div>
     </div>
 
@@ -53,7 +67,7 @@
 
   <!-- BARRA INFERIOR FLOTANTE -->
   <footer class="carrito-bar">
-    <div *ngIf="carrito.length > 0" class="carrito-activo-container">
+    <div *ngIf="esMaster && carrito.length > 0" class="carrito-activo-container">
       <div class="resumen-info" (click)="abrirResumenMesa()">
         <span class="txt-items-contador">🛒 {{ carrito.length }} ítem(s) nuevos</span>
         <strong class="txt-monto-total">Total: S/ {{ granTotalMesa.toFixed(2) }}</strong>
@@ -64,8 +78,12 @@
       </div>
     </div>
 
-    <div *ngIf="carrito.length === 0" class="resumen-enviado-container" (click)="abrirResumenMesa()">
+    <div *ngIf="esMaster && carrito.length === 0" class="resumen-enviado-container" (click)="abrirResumenMesa()">
       <span class="txt-consumo-mesa">📋 Ver estado de mi pedido y consumo</span>
+    </div>
+
+    <div *ngIf="!esMaster" class="resumen-enviado-container" (click)="abrirResumenMesa()">
+      <span class="txt-consumo-mesa" style="color: #fbbf24;">👀 Ver consumo de la mesa (Modo Visor)</span>
     </div>
   </footer>
 
@@ -143,14 +161,11 @@
 
       <div class="modal-body">
         <div *ngIf="itemsPedidoEnviado.length > 0" class="seccion-historial" style="margin-bottom: 16px;">
-          <!-- <p class="subtitulo-modal" style="color: #38bdf8; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">
-            🔥 Estado de tu Consumo en Mesa:</p> -->
-
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <p class="subtitulo-modal" style="color: #38bdf8; font-size: 0.78rem; font-weight: bold; margin: 0;">
               🔥 Consumo en Mesa:
             </p>
-            <button class="btn-pedir-cuenta-modal" (click)="solicitarCuentaMozo()">
+            <button *ngIf="esMaster" class="btn-pedir-cuenta-modal" (click)="solicitarCuentaMozo()">
               💳 Pedir Cuenta
             </button>
           </div>
@@ -184,7 +199,6 @@
                   <span class="detalle-extra" *ngIf="item.observacion">Obs: {{ item.observacion }}</span>
                   <span class="precio-modal">S/ {{ (item.precioSeleccionado * item.cantidad).toFixed(2) }} (x{{ item.cantidad }})</span>
 
-                  <!-- ⚡ ETIQUETA TIPO PÍLDORA CENTRADA IDÉNTICA AL MOZO -->
                   <div class="estados-cliente-box" style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">
                     <span class="badge-estado-pildora" [ngClass]="{
                       'estado-solicitado': item.estadoItem === 'solicitado' || item.estadoItem === 'pendiente_despacho',
@@ -197,6 +211,8 @@
                          item.estadoItem === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado' }}
                     </span>
 
+                    
+                    <!-- 👈 Píldora que avisa al cliente que se está llamando al mozo -->
                     <span *ngIf="item.estadoItem === 'listo'" class="pill-notificando-mozo"
                       style="font-size: 0.7rem; background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 3px 6px; border-radius: 4px; border: 1px dashed #10b981; display: inline-flex; align-items: center; gap: 4px;">
                       🔔 Notificando al mozo para llevar a mesa
@@ -212,8 +228,7 @@
           </div>
         </div>
 
-        <!-- SECCIÓN 2: Carrito nuevo pendiente de enviar -->
-        <div *ngIf="carrito.length > 0" class="seccion-carrito-nuevo" style="margin-top: 16px;">
+        <div *ngIf="esMaster && carrito.length > 0" class="seccion-carrito-nuevo" style="margin-top: 16px;">
           <p class="subtitulo-modal" style="color: #f59e0b; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">🛒 Nuevos platos por enviar:</p>
           <div *ngFor="let item of carrito; let i = index" class="item-modal" style="margin-bottom: 8px;">
             <div class="detalle-item-modal">
@@ -236,19 +251,18 @@
         </div>
       </div>
 
-      <!-- FOOTER DEL MODAL -->
       <div class="modal-footer">
         <div class="total-modal-caja">
           <span class="txt-label-gran-total">Consumo Gran Total Mesa:</span>
           <strong class="txt-numero-ascendente">S/{{ granTotalMesaVisual.toFixed(2) }}</strong>
         </div>
 
-        <div class="modal-botones-dobles" *ngIf="carrito.length > 0">
+        <div class="modal-botones-dobles" *ngIf="esMaster && carrito.length > 0">
           <button class="btn-seguir-pidiendo" (click)="mostrarModalCarrito = false">➕ Seguir Pidiendo</button>
           <button class="btn-enviar-modal" (click)="enviarPedidoNube()">Enviar 🔥</button>
         </div>
 
-        <button *ngIf="carrito.length === 0" class="btn-enviar-modal full-width" (click)="mostrarModalCarrito = false">Cerrar 👍</button>
+        <button *ngIf="!esMaster || carrito.length === 0" class="btn-enviar-modal full-width" (click)="mostrarModalCarrito = false">Cerrar 👍</button>
       </div>
     </div>
   </div>

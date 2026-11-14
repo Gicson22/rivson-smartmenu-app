@@ -103,18 +103,6 @@
   padding: 16px;
 }
 
-.lista-mesas-mozo {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 16px;
-}
-
-@media (min-width: 768px) {
-  .lista-mesas-mozo {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 .card-mesa-mozo {
   background: #1e293b;
   border-radius: 10px;
@@ -139,11 +127,11 @@
 .tag-mesa {
   font-weight: 800;
   color: #38bdf8;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .badge-duenio {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: bold;
@@ -153,7 +141,7 @@
 .badge-duenio.otro { background: #334155; color: #94a3b8; }
 
 .card-mesa-body {
-  padding: 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -162,7 +150,7 @@
 .bloque-alerta-compacto {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .alerta-info-row {
@@ -170,27 +158,27 @@
   justify-content: space-between;
   align-items: center;
   background: #0f172a;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #334155;
 }
 
 .txt-alerta-info {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   color: #fca5a5;
   margin: 0;
   font-weight: bold;
 }
 
 .total-alerta-preview {
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #34d399;
   font-weight: 800;
 }
 
 .acciones-alerta-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: stretch;
 }
 
@@ -199,15 +187,15 @@
   background: #ef4444;
   color: white;
   border: none;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   font-weight: 800;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
 }
 
@@ -216,15 +204,15 @@
   background: #059669;
   color: white;
   border: none;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   font-weight: 800;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
 }
 
@@ -233,15 +221,15 @@
   background: #1e293b;
   color: #38bdf8;
   border: 1px solid #38bdf8;
-  padding: 8px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   font-weight: bold;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
 }
 
@@ -253,7 +241,7 @@
 .bloque-mesa-activo {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .header-bloque-mesa {
@@ -261,19 +249,19 @@
   justify-content: space-between;
   align-items: center;
   background: #0f172a;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 6px;
   border: 1px solid #334155;
 }
 
 .titulo-platos-box {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #38bdf8;
   font-weight: bold;
 }
 
 .total-mesa-tag {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: #34d399;
   font-weight: bold;
 }
@@ -286,18 +274,18 @@
 }
 
 .txt-ajeno {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: #94a3b8;
   margin: 0;
 }
 
 .bloque-libre-accion {
   text-align: center;
-  padding: 10px;
+  padding: 8px;
 }
 
 .txt-libre-info {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #94a3b8;
   margin: 0;
 }
@@ -353,4 +341,130 @@
   border-radius: 6px !important;
   margin: 0 auto !important;
   display: block !important;
+}
+
+/* 🌟 ESTILOS LIMPIOS Y COMPACTOS PARA LAS CARDS COBRADAS */
+.contenedor-cobradas-columna-unica {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.card-mesa-mozo.card-cobrada-clean {
+  background: #1e293b;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  border-left: 3px solid #10b981 !important;
+  overflow: hidden;
+  width: 100%;
+}
+
+.card-cobrada-header {
+  background: #0f172a;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+  gap: 8px;
+}
+
+.tag-mesa-cobrada {
+  font-weight: 800;
+  color: #38bdf8;
+  font-size: 0.8rem;
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.texto-hora-centrada {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 600;
+  flex: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ⚡ Etiqueta "Cerrada" sin icono y con la letra un poco más grandecita */
+.badge-pagado-clean {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem; /* 👈 Letra un poco más grande y legible */
+  font-weight: 700;
+  flex: 0 0 auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.card-mesa-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.info-row-clean {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid #334155;
+}
+
+.label-clean {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.monto-clean {
+  font-size: 0.9rem;
+  color: #34d399;
+  font-weight: 800;
+}
+
+/* 🎨 Botón con el tono azul elegante y vivo del sistema */
+.btn-voucher-clean {
+  background: #0284c7; 
+  color: white;
+  border: none;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  transition: background 0.2s ease;
+}
+
+.btn-voucher-clean:hover {
+  background: #0369a1;
+}
+
+/* ⚡ LISTA GENERAL DE MESAS ACTIVAS */
+.lista-mesas-mozo {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+@media (max-width: 480px) {
+  .lista-mesas-mozo {
+    grid-template-columns: 1fr;
+  }
 }

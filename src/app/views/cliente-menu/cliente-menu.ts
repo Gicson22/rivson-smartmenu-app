@@ -1,8 +1,8 @@
-import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef, EnvironmentInjector, runInInjectionContext } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef, EnvironmentInjector, runInInjectionContext, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { Firestore, collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs } from '@angular/fire/firestore';
+import { Firestore, collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs, setDoc, getDoc } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 import { Producto } from '../../models/pedido';
 
@@ -30,7 +30,7 @@ export interface ItemPedidoEnviado extends ItemCarritoCliente {
   templateUrl: './cliente-menu.html',
   styleUrls: ['./cliente-menu.css']
 })
-export class ClienteMenu implements OnInit {
+export class ClienteMenu implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private firestore = inject(Firestore);
   private cdr = inject(ChangeDetectorRef);
@@ -38,19 +38,23 @@ export class ClienteMenu implements OnInit {
 
   granTotalMesaVisual: number = 0;
   private animacionTotalId: any = null;
+  private heartbeatInterval: any = null;
+  private monitorInactividadMasterId: any = null;
   
   numeroMesa: number = 1;
   restaurantId: string = 'moscu';
   restaurantIconUrl: string = ''; 
   nombreComercialRestaurante: string = '¡Bienvenidos a mi Picantería!';
   
-  // ⚡ CONTROL DE SESIÓN ÚNICA POR CLIENTE/TICKET
   sessionToken: string = '';
   sesionFinalizadaBloqueada: boolean = false;
 
+  deviceToken: string = '';
+  esMaster: boolean = false;
+  private alertaAbiertaMaster: boolean = false;
+
   productos: Producto[] = [];
   categoriaSeleccionada: string = 'todos';
-  
   filtroEstadoModal: string = 'solicitado';
   
   carrito: ItemCarritoCliente[] = [];
@@ -76,27 +80,244 @@ export class ClienteMenu implements OnInit {
         this.restaurantId = params['local'].trim().toLowerCase();
       }
       
-      // Inicializar o validar el ticket de sesión del cliente
+      this.inicializarDeviceToken();
       this.inicializarSesionUnica();
     });
 
     this.cargarLogoRestaurante();
     this.cargarCartaRealFirestore();
     this.escucharPedidosMesaFirestore();
+    this.escucharControlMesaFirestore();
   }
 
-  // ⚡ GENERADOR Y VALIDADOR DE TICKET ÚNICO DE MESA
+  ngOnDestroy(): void {
+    this.limpiarIntervalosMaster();
+    this.detenerMonitorInactividad();
+  }
+
+  private limpiarIntervalosMaster(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  private detenerMonitorInactividad(): void {
+    if (this.monitorInactividadMasterId) {
+      clearInterval(this.monitorInactividadMasterId);
+      this.monitorInactividadMasterId = null;
+    }
+  }
+
+  inicializarDeviceToken(): void {
+    const keyDevice = `rivson_device_${this.restaurantId}_mesa_${this.numeroMesa}`;
+    let token = sessionStorage.getItem(keyDevice);
+    if (!token) {
+      token = 'DEV-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+      sessionStorage.setItem(keyDevice, token);
+    }
+    this.deviceToken = token;
+  }
+
+  // 👑 CONTROL DE MESA UNIVERSAL Y AUTOMÁTICO (CON VIGÍA EN VISORES)
+  escucharControlMesaFirestore(): void {
+    runInInjectionContext(this.injector, () => {
+      try {
+        const docRef = doc(this.firestore, 'sesiones_mesa', `${this.restaurantId}_mesa_${this.numeroMesa}`);
+        
+        onSnapshot(docRef, async (docSnap: any) => {
+          const ahora = Date.now();
+
+          if (!docSnap.exists()) {
+            try {
+              await setDoc(docRef, {
+                restaurantId: this.restaurantId,
+                numeroMesa: this.numeroMesa,
+                masterToken: this.deviceToken,
+                ultimoLatido: ahora,
+                solicitudRelevo: { pendiente: false, solicitanteToken: '' }
+              });
+              this.esMaster = true;
+              this.iniciarLatidoMaster(docRef);
+              this.detenerMonitorInactividad();
+            } catch (e) {
+              console.error('Error inicializando master:', e);
+            }
+          } else {
+            const data: any = docSnap.data();
+            const masterTokenFirestore = data?.['masterToken'];
+            const ultimoLatido = data?.['ultimoLatido'] || 0;
+            const solicitud = data?.['solicitudRelevo'] || { pendiente: false, solicitanteToken: '' };
+
+            const masterDesconectado = masterTokenFirestore && (ahora - ultimoLatido > 7000);
+
+            if (!masterTokenFirestore || masterTokenFirestore === '' || masterDesconectado) {
+              try {
+                await updateDoc(docRef, {
+                  masterToken: this.deviceToken,
+                  ultimoLatido: ahora,
+                  solicitudRelevo: { pendiente: false, solicitanteToken: '' }
+                });
+                this.esMaster = true;
+                this.iniciarLatidoMaster(docRef);
+                this.detenerMonitorInactividad();
+              } catch (err) {
+                console.error('Error al relevar master desde visor:', err);
+              }
+            } else if (masterTokenFirestore === this.deviceToken) {
+              this.esMaster = true;
+              this.iniciarLatidoMaster(docRef);
+              this.detenerMonitorInactividad();
+
+              // 🔔 DETECTAMOS SI HAY UNA SOLICITUD PENDIENTE DE OTRO DISPOSITIVO
+              if (solicitud.pendiente && solicitud.solicitanteToken && solicitud.solicitanteToken !== this.deviceToken) {
+                this.mostrarAlertaSolicitudRelevo(docRef, solicitud);
+              }
+            } else {
+              this.esMaster = false;
+              this.limpiarIntervalosMaster();
+              
+              // ⚡ ACTIVAMOS EL VIGÍA AUTOMÁTICO EN LOS VISORES
+              this.iniciarMonitorInactividadMaster(docRef);
+            }
+          }
+          this.cdr.detectChanges();
+        });
+      } catch (err) {
+        console.error('Error escuchando control de mesa:', err);
+      }
+    });
+  }
+
+  mostrarAlertaSolicitudRelevo(docRef: any, solicitud: any): void {
+    if (this.alertaAbiertaMaster) return;
+    this.alertaAbiertaMaster = true;
+
+    Swal.fire({
+      title: '👑 Solicitud de Control de Mesa',
+      text: 'Un acompañante en tu mesa desea solicitar el control para realizar pedidos.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, transferir mando ✅',
+      cancelButtonText: 'Rechazar ❌',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#ef4444',
+      allowOutsideClick: false,
+      background: '#1e293b',
+      color: '#ffffff'
+    }).then(async (result) => {
+      this.alertaAbiertaMaster = false;
+      try {
+        if (result.isConfirmed) {
+          // 🚀 TRANSFERENCIA INMEDIATA DEL MANDO
+          await updateDoc(docRef, {
+            masterToken: solicitud.solicitanteToken,
+            ultimoLatido: Date.now(),
+            solicitudRelevo: { pendiente: false, solicitanteToken: '' }
+          });
+
+          // Nos quitamos el rol de Master localmente al instante
+          this.esMaster = false;
+          this.limpiarIntervalosMaster();
+          this.iniciarMonitorInactividadMaster(docRef);
+          this.cdr.detectChanges();
+
+          Swal.fire({
+            icon: 'success',
+            title: '¡Mando transferido!',
+            text: 'Has transferido el control de la mesa exitosamente.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        } else {
+          // Si rechaza, limpiamos la solicitud pendiente en Firestore
+          await updateDoc(docRef, {
+            solicitudRelevo: { pendiente: false, solicitanteToken: '' }
+          });
+        }
+      } catch (e) {
+        console.error('Error al responder solicitud de relevo:', e);
+        this.alertaAbiertaMaster = false;
+      }
+    });
+  }
+
+  // 💓 LATIDO SILENCIOSO DEL MASTER
+  private iniciarLatidoMaster(docRef: any): void {
+    if (this.heartbeatInterval) return;
+
+    this.heartbeatInterval = setInterval(async () => {
+      if (this.esMaster) {
+        try {
+          await updateDoc(docRef, { ultimoLatido: Date.now() });
+        } catch (e) {}
+      }
+    }, 3000);
+  }
+
+  // 👁️ VIGÍA AUTOMÁTICO DE LOS VISORES
+  private iniciarMonitorInactividadMaster(docRef: any): void {
+    if (this.monitorInactividadMasterId) return;
+
+    this.monitorInactividadMasterId = setInterval(async () => {
+      if (!this.esMaster) {
+        runInInjectionContext(this.injector, async () => {
+          try {
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+              const data: any = snap.data();
+              const ultimoLatido = data?.['ultimoLatido'] || 0;
+              const masterToken = data?.['masterToken'];
+              const ahora = Date.now();
+
+              if (!masterToken || (ahora - ultimoLatido > 7000)) {
+                await updateDoc(docRef, {
+                  masterToken: this.deviceToken,
+                  ultimoLatido: ahora,
+                  solicitudRelevo: { pendiente: false }
+                });
+                this.esMaster = true;
+                this.iniciarLatidoMaster(docRef);
+                this.detenerMonitorInactividad();
+                this.cdr.detectChanges();
+              }
+            }
+          } catch (err) {}
+        });
+      }
+    }, 3000);
+  }
+
+  async solicitarControlMesa(): Promise<void> {
+    if (this.esMaster) return;
+
+    try {
+      const docRef = doc(this.firestore, 'sesiones_mesa', `${this.restaurantId}_mesa_${this.numeroMesa}`);
+      await updateDoc(docRef, {
+        solicitudRelevo: {
+          pendiente: true,
+          solicitanteToken: this.deviceToken
+        }
+      });
+
+      Swal.fire({
+        icon: 'info',
+        title: 'Solicitud Enviada ⏳',
+        text: 'Se ha notificado al anfitrión de tu mesa. Esperando su aprobación...',
+        timer: 3000,
+        showConfirmButton: false
+      });
+    } catch (e) {
+      console.error('Error solicitando control:', e);
+      Swal.fire('Error', 'No se pudo enviar la solicitud.', 'error');
+    }
+  }
+
   inicializarSesionUnica(): void {
     const keyToken = `rivson_token_${this.restaurantId}_mesa_${this.numeroMesa}`;
     const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
 
-    // Si viene directamente de escanear un QR (puedes agregar ?scan=1 en tus QRs o detectar navegación fresca)
-    // Si ya estaba bloqueado por cierre de cuenta, mostramos la pantalla de bloqueo inmediatamente
-    if (localStorage.getItem(keyBloqueo) === 'true') {
-      this.sesionFinalizadaBloqueada = true;
-      this.mostrarAlertaCierreCuenta();
-      return;
-    }
+    localStorage.removeItem(keyBloqueo);
 
     let tokenGuardado = localStorage.getItem(keyToken);
     if (!tokenGuardado) {
@@ -104,6 +325,7 @@ export class ClienteMenu implements OnInit {
       localStorage.setItem(keyToken, tokenGuardado);
     }
     this.sessionToken = tokenGuardado;
+    this.sesionFinalizadaBloqueada = false;
   }
 
   cargarLogoRestaurante(): void {
@@ -176,7 +398,6 @@ export class ClienteMenu implements OnInit {
             const estadoGlobal = data['estado'] || 'solicitado';
             const tokenDoc = data['sessionToken'] || '';
 
-            // ⚡ DETECTAR SI LA CUENTA DE ESTE CLIENTE (SU TICKET) ACABA DE SER COBRADA
             if (estadoGlobal === 'pagado') {
               if (tokenDoc === this.sessionToken && this.sessionToken !== '') {
                 miSesionFuePagada = true;
@@ -184,33 +405,29 @@ export class ClienteMenu implements OnInit {
               return; 
             }
 
-            // Solo cargamos pedidos activos si pertenecen a la sesión actual (o si no tienen token aún)
-            if (!tokenDoc || tokenDoc === this.sessionToken) {
-              hayPedidosActivos = true;
-              const items = data['items'] || [];
-              const destino = data['destino'] || 'cocina';
+            hayPedidosActivos = true;
+            const items = data['items'] || [];
+            const destino = data['destino'] || 'cocina';
 
-              items.forEach((item: any) => {
-                const estadoDelItem = item.estadoItem || estadoGlobal;
-                const firmaItem = `${item.productoId || item.nombre}_${item.tamanioSeleccionado || 'unico'}_${item.nivelPicante || 'ninguno'}_${(item.observacion || '').trim().toLowerCase()}_${estadoDelItem}`;
+            items.forEach((item: any) => {
+              const estadoDelItem = item.estadoItem || estadoGlobal;
+              const firmaItem = `${item.productoId || item.nombre}_${item.tamanioSeleccionado || 'unico'}_${item.nivelPicante || 'ninguno'}_${(item.observacion || '').trim().toLowerCase()}_${estadoDelItem}`;
 
-                if (mapaAgrupado.has(firmaItem)) {
-                  const existente = mapaAgrupado.get(firmaItem)!;
-                  existente.cantidad += Number(item.cantidad || 1);
-                } else {
-                  mapaAgrupado.set(firmaItem, {
-                    ...item,
-                    cantidad: Number(item.cantidad || 1),
-                    estadoItem: estadoDelItem,
-                    destino: destino,
-                    idDocumentoPedido: docSnap.id
-                  });
-                }
-              });
-            }
+              if (mapaAgrupado.has(firmaItem)) {
+                const existente = mapaAgrupado.get(firmaItem)!;
+                existente.cantidad += Number(item.cantidad || 1);
+              } else {
+                mapaAgrupado.set(firmaItem, {
+                  ...item,
+                  cantidad: Number(item.cantidad || 1),
+                  estadoItem: estadoDelItem,
+                  destino: destino,
+                  idDocumentoPedido: docSnap.id
+                });
+              }
+            });
           });
 
-          // ⚡ SI EL MOZO COBRÓ SU CUENTA: Bloqueamos la sesión y lanzamos la alerta gigante
           if (miSesionFuePagada && !hayPedidosActivos && !this.sesionFinalizadaBloqueada) {
             this.ejecutarCierreYBloqueoCliente();
             return;
@@ -238,8 +455,9 @@ export class ClienteMenu implements OnInit {
     });
   }
 
-  // ⚡ EJECUTA EL BLOQUEO DE PANTALLA Y LIMPIEZA DE SESIÓN AL PAGAR
   private ejecutarCierreYBloqueoCliente(): void {
+    if (this.sesionFinalizadaBloqueada) return;
+
     this.sesionFinalizadaBloqueada = true;
     this.carrito = [];
     this.itemsPedidoEnviado = [];
@@ -252,7 +470,6 @@ export class ClienteMenu implements OnInit {
     const keyToken = `rivson_token_${this.restaurantId}_mesa_${this.numeroMesa}`;
     const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
     
-    // Marcamos el bloqueo persistente y borramos el token viejo
     localStorage.setItem(keyBloqueo, 'true');
     localStorage.removeItem(keyToken);
 
@@ -260,7 +477,6 @@ export class ClienteMenu implements OnInit {
     this.mostrarAlertaCierreCuenta();
   }
 
-  // ⚡ ALERTA GIGANTE A PANTALLA COMPLETA DE DESPEDIDA Y BLOQUEO
   mostrarAlertaCierreCuenta(): void {
     Swal.fire({
       icon: 'success',
@@ -269,31 +485,30 @@ export class ClienteMenu implements OnInit {
         <div style="font-size: 1.05rem; color: #e2e8f0; line-height: 1.5; margin-top: 8px;">
           <p style="margin-bottom: 12px;">Muchas gracias por tu preferencia en <strong style="color: #38bdf8;">${this.nombreComercialRestaurante}</strong>.</p>
           <p style="font-size: 0.92rem; color: #94a3b8; margin-bottom: 16px;">Tu sesión en la <strong>Mesa ${this.numeroMesa}</strong> ha finalizado con éxito. ¡Esperamos verte muy pronto!</p>
-          <div style="background: rgba(56, 189, 248, 0.1); border: 1px dashed #38bdf8; padding: 10px; border-radius: 8px; font-size: 0.8rem; color: #38bdf8;">
-            🔒 Para realizar un nuevo consumo, por favor escanea nuevamente el código QR de tu mesa.
+          <div style="background: rgba(239, 68, 68, 0.1); border: 1px dashed #f87171; padding: 10px; border-radius: 8px; font-size: 0.8rem; color: #f87171;">
+            🔒 Esta sesión ha caducado. Para ver el menú o realizar un nuevo pedido, escanea el código QR de la mesa nuevamente.
           </div>
         </div>
       `,
       background: '#0f172a',
       color: '#ffffff',
-      confirmButtonText: 'Entendido, ¡Gracias! 👍',
-      confirmButtonColor: '#10b981',
+      confirmButtonText: 'Cerrar / Salir 🚪',
+      confirmButtonColor: '#ef4444',
       allowOutsideClick: false,
       allowEscapeKey: false,
-      backdrop: `rgba(15, 23, 42, 0.96)`,
+      backdrop: `rgba(15, 23, 42, 0.98)`,
       customClass: {
         popup: 'alerta-pantalla-completa-cliente'
       }
     }).then((result) => {
       if (result.isConfirmed) {
-        // Si le da OK, liberamos el bloqueo local por si es un nuevo cliente escaneando desde el mismo teléfono
-        const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
-        localStorage.removeItem(keyBloqueo);
-        this.sesionFinalizadaBloqueada = false;
-        
-        // Generamos un nuevo token limpio por si vuelve a escanear
-        this.inicializarSesionUnica();
-        this.cdr.detectChanges();
+        window.close();
+        document.body.innerHTML = `
+          <div style="background: #0f172a; color: white; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif; text-align: center; padding: 20px;">
+            <h1 style="color: #38bdf8; margin-bottom: 10px;">¡Gracias por visitarnos!</h1>
+            <p style="color: #94a3b8; max-width: 320px; font-size: 0.9rem; line-height: 1.4;">Tu cuenta en <strong>${this.nombreComercialRestaurante}</strong> ya fue pagada. Puedes cerrar esta ventana.</p>
+          </div>
+        `;
       }
     });
   }
@@ -304,6 +519,27 @@ export class ClienteMenu implements OnInit {
       return;
     }
 
+    // ⚡ VALIDACIÓN: REVISAR SI TODOS LOS ÍTEMS ACTIVOS ESTÁN ENTREGADOS
+    const hayPendientesDeEntrega = this.itemsPedidoEnviado.some(item => {
+      const estado = (item.estadoItem || '').toLowerCase();
+      // Si hay algún ítem que NO sea entregado, servido o despachado (es decir, solicitado, preparando o listo)
+      return estado !== 'entregado' && estado !== 'servido' && estado !== 'despachado' && estado !== 'cancelado';
+    });
+
+    if (hayPendientesDeEntrega) {
+      Swal.fire({
+        icon: 'warning',
+        title: '⚠️ No se puede pedir la cuenta aún',
+        text: 'Tienes platos o bebidas pendientes por entregar en tu mesa. Por favor espera a que todo sea entregado antes de solicitar tu cuenta.',
+        confirmButtonText: 'Entendido 👍',
+        confirmButtonColor: '#f59e0b',
+        background: '#1e293b',
+        color: '#ffffff'
+      });
+      return; // Detenemos la ejecución aquí
+    }
+
+    // Si todo está entregado, procede con normalidad a pedir la cuenta
     Swal.fire({
       title: `¿Solicitar Cuenta - Mesa ${this.numeroMesa}?`,
       text: 'Se le notificará al mozo asignado para que se acerque a cobrar.',
@@ -394,6 +630,16 @@ export class ClienteMenu implements OnInit {
       this.mostrarAlertaCierreCuenta();
       return;
     }
+    if (!this.esMaster) {
+      Swal.fire({
+        icon: 'warning',
+        title: '👀 Modo Visor (Solo Consulta)',
+        text: 'No puedes agregar platos porque no eres el anfitrión de la mesa. Puedes solicitar el control en la parte superior.',
+        confirmButtonColor: '#38bdf8'
+      });
+      return;
+    }
+
     this.productoSeleccionado = producto;
     this.tamanioSeleccionado = 'personal';
     this.nivelPicanteSeleccionado = 'medio';
@@ -415,7 +661,7 @@ export class ClienteMenu implements OnInit {
   }
 
   agregarAlCarritoConOpciones(): void {
-    if (!this.productoSeleccionado || this.sesionFinalizadaBloqueada) return;
+    if (!this.productoSeleccionado || this.sesionFinalizadaBloqueada || !this.esMaster) return;
 
     const precioUnitario = this.calcularPrecioActualModal();
     const tamanio = this.productoSeleccionado.tienePorciones ? this.tamanioSeleccionado : undefined;
@@ -456,6 +702,7 @@ export class ClienteMenu implements OnInit {
   }
 
   modificarCantidadCarrito(index: number, cambio: number): void {
+    if (!this.esMaster) return;
     this.carrito[index].cantidad += cambio;
     if (this.carrito[index].cantidad <= 0) {
       this.carrito.splice(index, 1);
@@ -465,6 +712,7 @@ export class ClienteMenu implements OnInit {
   }
 
   removerItemCarrito(index: number): void {
+    if (!this.esMaster) return;
     this.carrito.splice(index, 1);
     this.iniciarAnimacionTotal(this.granTotalMesa);
     this.cdr.detectChanges();
@@ -477,7 +725,7 @@ export class ClienteMenu implements OnInit {
   }
 
   async enviarPedidoNube(): Promise<void> {
-    if (this.carrito.length === 0 || this.sesionFinalizadaBloqueada) return;
+    if (this.carrito.length === 0 || this.sesionFinalizadaBloqueada || !this.esMaster) return;
 
     const confirmacion = await Swal.fire({
       title: '¿Confirmar y enviar pedido?',
@@ -514,7 +762,6 @@ export class ClienteMenu implements OnInit {
         const itemsParaCocina = carritoLimpio.filter(i => i.categoria !== 'bebidas');
         const itemsParaMozo = carritoLimpio.filter(i => i.categoria === 'bebidas');
 
-        // ⚡ AMARRAMOS EL TOKEN DE SESIÓN AL PEDIDO EN FIRESTORE
         if (itemsParaCocina.length > 0) {
           await addDoc(pedidosRef, {
             restaurantId: this.restaurantId,
