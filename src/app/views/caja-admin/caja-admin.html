@@ -1,32 +1,65 @@
 <div class="caja-container">
-  <!-- Header de Caja -->
-  <header class="header-caja">
-    <div class="info-turno">
-      <h1>💰 Caja - Picantería Moscú</h1>
-      <span *ngIf="cajeroActual" class="badge-cajero-info">
-         cashier: {{ cajeroActual.nombre }} (DNI: {{ cajeroActual.dni }})
-      </span>
+  <!-- Header de Caja Dinámico con Logo de Firestore -->
+  <!-- <header class="header-caja">
+    <div class="info-turno" style="display: flex; align-items: center; gap: 10px;">
+      <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo Local" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #38bdf8; background: #1e293b;" />
+      <div>
+        <h1 style="font-size: 0.95rem; margin: 0; color: #38bdf8; font-weight: 800;">💰 Caja - {{ nombreRestaurante }}</h1>
+        <span *ngIf="cajeroActual" class="badge-cajero-info">
+           cashier: {{ cajeroActual.nombre }} (DNI: {{ cajeroActual.dni }})
+        </span>
+      </div>
     </div>
     <button class="btn-salir-turno" (click)="cerrarTurno()">Cerrar Turno 🚪</button>
+  </header> -->
+
+  <header class="header-caja" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <!-- Logo y Título en una sola línea fluida -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1.5px solid #38bdf8; background: #1e293b;" />
+        <h1 style="font-size: 0.85rem; margin: 0; color: #38bdf8; font-weight: 800;">Caja - {{ nombreRestaurante }}</h1>
+      </div>
+
+      <button class="btn-salir-turno" (click)="cerrarTurno()" style="padding: 4px 8px; font-size: 0.65rem;">Cerrar Turno 🚪</button>
+    </div>
+
+    <!-- Línea punteada de separación para ganar elegancia y espacio -->
+    <div style="width: 100%; border-top: 1px dashed #334155; padding-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.7rem; color: #94a3b8;">
+        Cajero: <strong style="color: #e2e8f0;">{{ cajeroActual?.nombre || 'Personal' }}</strong>
+      </span>
+      <span style="font-size: 0.65rem; color: #34d399; font-weight: bold; background: rgba(52, 211, 153, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.3);">
+        🟢 Turno Activo
+      </span>
+    </div>
+
   </header>
 
   <main class="contenido-caja">
     
-    <!-- 📊 PANEL FINANCIERO DINÁMICO -->
+    <!-- 📊 PANEL FINANCIERO DINÁMICO CON 3 COLUMNAS OPTIMIZADAS -->
     <section class="panel-financiero">
       <h3>📊 Resumen Financiero del Turno</h3>
-      <div class="grid-metricas">
+      <div class="grid-metricas" style="grid-template-columns: repeat(3, 1fr); gap: 6px;">
         
-        <div class="card-metrica caja">
-          <span class="metrica-label">💵 Dinero en Caja</span>
-          <span class="metrica-valor">S/ {{ displayDineroEnCaja.toFixed(2) }}</span>
-          <small>Líquido acumulado hoy</small>
+        <div class="card-metrica caja" style="padding: 8px 4px; text-align: center;">
+          <span class="metrica-label" style="font-size: 0.65rem; white-space: nowrap;">💵 En Caja</span>
+          <span class="metrica-valor" style="font-size: 0.82rem; margin: 2px 0;">S/ {{ displayDineroEnCaja.toFixed(2) }}</span>
+          <small style="font-size: 0.55rem; color: #94a3b8;">Líquido hoy</small>
         </div>
 
-        <div class="card-metrica deuda">
-          <span class="metrica-label">⏳ Por Cobrar</span>
-          <span class="metrica-valor">S/ {{ displayPorCobrar.toFixed(2) }}</span>
-          <small>Deuda en mesas activas</small>
+        <div class="card-metrica" style="border-color: #f59e0b; padding: 8px 4px; text-align: center;">
+          <span class="metrica-label" style="color: #fbbf24; font-size: 0.65rem; white-space: nowrap;">⚠️ Por Validar</span>
+          <span class="metrica-valor" style="font-size: 0.82rem; color: #fbbf24; margin: 2px 0;">S/ {{ displayPorValidar.toFixed(2) }}</span>
+          <small style="font-size: 0.55rem; color: #94a3b8;">Con mozos</small>
+        </div>
+
+        <div class="card-metrica deuda" style="padding: 8px 4px; text-align: center;">
+          <span class="metrica-label" style="font-size: 0.65rem; white-space: nowrap;">⏳ Por Cobrar</span>
+          <span class="metrica-valor" style="font-size: 0.82rem; margin: 2px 0;">S/ {{ displayPorCobrar.toFixed(2) }}</span>
+          <small style="font-size: 0.55rem; color: #94a3b8;">En mesas</small>
         </div>
 
       </div>
@@ -50,13 +83,19 @@
       </button>
     </div>
 
-    <!-- VISTA 1: CUENTAS ACTIVAS EN LAS MESAS -->
+    <!-- VISTA 1: CUENTAS ACTIVAS CON FILTROS CLAROS -->
     <ng-container *ngIf="vistaActiva === 'cuentas'">
       <div class="panel-filtros-caja">
         <div class="botones-filtro">
-          <button (click)="filtroEstado = 'todos'" [class.activo]="filtroEstado === 'todos'">Todas</button>
-          <button (click)="filtroEstado = 'pendiente'" [class.activo]="filtroEstado === 'pendiente'">⏳ Por Cobrar</button>
-          <button (click)="filtroEstado = 'pagado'" [class.activo]="filtroEstado === 'pagado'">✅ Pagadas</button>
+          <button (click)="filtroEstado = 'pendiente'" [class.activo]="filtroEstado === 'pendiente'">
+            ⏳ Por Cobrar ({{ contarFiltro('pendiente') }})
+          </button>
+          <button (click)="filtroEstado = 'por_validar'" [class.activo]="filtroEstado === 'por_validar'">
+            ⚠️ Por Validar ({{ contarFiltro('por_validar') }})
+          </button>
+          <button (click)="filtroEstado = 'pagadas'" [class.activo]="filtroEstado === 'pagadas'">
+            ✅ Pagadas ({{ contarFiltro('pagadas') }})
+          </button>
         </div>
       </div>
 
@@ -66,7 +105,7 @@
           <div class="card-caja-header">
             <span>MESA N° {{ mesa.numeroMesa }}</span>
             <span class="badge-estado" [ngClass]="mesa.estadoPago">
-              {{ mesa.estadoPago === 'pagado' ? '✅ PAGADO' : '⏳ PENDIENTE' }}
+              {{ mesa.estadoPago === 'pagado' ? (mesa.cajaValidada ? '✅ PAGADO Y VALIDADO' : '⚠️ PENDIENTE VALIDAR') : '⏳ PENDIENTE' }}
             </span>
           </div>
 
@@ -79,22 +118,40 @@
                 <span>S/ {{ (item.cantidad * item.precioUnitario).toFixed(2) }}</span>
               </li>
             </ul>
+            
+            <!-- 🛡️ Botón de validación solo si está pendiente de recibir el efectivo del mozo -->
+            <div *ngIf="mesa.estadoPago === 'pagado' && !mesa.cajaValidada" style="background: rgba(245, 158, 11, 0.15); border: 1px dashed #f59e0b; padding: 8px; border-radius: 6px; margin-top: 8px; text-align: center;">
+              <span style="font-size: 0.72rem; color: #fbbf24; display: block; font-weight: bold; margin-bottom: 6px;">⚠️ Cobrado por el Mozo (Falta recibir efectivo)</span>
+              <button (click)="validarEfectivoMozo(mesa)" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; width: 100%;">
+                💵 Validar y Recibir Dinero en Caja
+              </button>
+            </div>
+
             <div class="total-caja-cuenta">
               <span>Total a Pagar:</span>
               <strong>S/ {{ mesa.total.toFixed(2) }}</strong>
             </div>
           </div>
 
-          <div class="card-caja-footer">
+          <div class="card-caja-footer" *ngIf="mesa.estadoPago === 'pendiente'">
             <button 
               class="btn-cobrar" 
               [ngClass]="mesa.estadoPago"
-              [disabled]="mesa.estadoPago === 'pagado'"
               (click)="cobrarMesa(mesa)">
-              {{ mesa.estadoPago === 'pagado' ? '✔️ Cuenta Cancelada' : '💳 Registrar Cobro' }}
+              💳 Registrar Cobro
             </button>
           </div>
 
+          <div class="card-caja-footer" *ngIf="mesa.estadoPago === 'pagado' && mesa.cajaValidada">
+            <button class="btn-cobrar pagado" disabled>
+              ✔️ Cuenta Cancelada y Validada
+            </button>
+          </div>
+
+        </div>
+
+        <div *ngIf="mesasFiltradas.length === 0" class="sin-registros">
+          🎉 No hay cuentas en esta sección.
         </div>
       </div>
     </ng-container>
@@ -111,13 +168,21 @@
       </div>
 
       <div class="lista-historial">
-        <div *ngFor="let ticket of historialFiltrado" class="card-historial-ticket">
+        <div *ngFor="let ticket of historialFiltrado" class="card-historial-ticket" [style.border-color]="ticket.cajaValidada ? '#10b981' : '#f59e0b'">
           <div class="historial-header">
             <strong>Mesa N° {{ ticket.numeroMesa }}</strong>
-            <span class="hora-tag">🕒 {{ ticket.horaIngreso }} - {{ ticket.horaSalida || 'En proceso' }}</span>
+            <span class="hora-tag">🕒 {{ ticket.horaSalida || 'Cobrado' }}</span>
           </div>
           <div class="historial-body">
             <small *ngFor="let it of ticket.items">{{ it.cantidad }}x {{ it.nombre }} | </small>
+            
+            <div *ngIf="!ticket.cajaValidada" style="font-size: 0.7rem; color: #fbbf24; margin-top: 4px; font-weight: bold;">
+              ⚠️ Pagado por mozo (Sin validar en caja)
+            </div>
+            <div *ngIf="ticket.cajaValidada" style="font-size: 0.7rem; color: #34d399; margin-top: 4px; font-weight: bold;">
+              ✅ Pagado y validado en caja
+            </div>
+
             <div class="historial-total">
               <span>Total Cancelado:</span>
               <strong class="txt-verde">S/ {{ ticket.total.toFixed(2) }}</strong>
