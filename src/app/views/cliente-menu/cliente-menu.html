@@ -229,7 +229,7 @@
         </div>
 
         <div *ngIf="esMaster && carrito.length > 0" class="seccion-carrito-nuevo" style="margin-top: 16px;">
-          <p class="subtitulo-modal" style="color: #f59e0b; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">🛒 Nuevos platos por enviar:</p>
+          <p class="subtitulo-modal" style="color: #f59e0b; font-size: 0.82rem; font-weight: bold; margin-bottom: 8px;">🛒 Nuevos platos por solicitar:</p>
           <div *ngFor="let item of carrito; let i = index" class="item-modal" style="margin-bottom: 8px;">
             <div class="detalle-item-modal">
               <h4>{{ item.nombre }} <span class="badge-tamanio" *ngIf="item.tamanioSeleccionado">({{ item.tamanioSeleccionado | uppercase }})</span></h4>

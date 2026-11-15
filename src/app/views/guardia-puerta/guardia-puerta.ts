@@ -1,8 +1,18 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, EnvironmentInjector, runInInjectionContext, NgZone } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import Swal from 'sweetalert2'; // 👈 Importamos SweetAlert2
+import { Router, ActivatedRoute } from '@angular/router';
+import Swal from 'sweetalert2';
+import { 
+  Firestore, 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  QuerySnapshot,
+  DocumentData,
+  Unsubscribe 
+} from '@angular/fire/firestore';
 
 interface ItemConsumo {
   nombre: string;
@@ -16,7 +26,6 @@ interface MesaMonitoreo {
   total?: number;
   estadoPago?: 'pendiente' | 'pagado';
   estadoMesa: 'ocupada' | 'libre';
-  salidaAutorizada?: boolean;
 }
 
 @Component({
@@ -26,27 +35,52 @@ interface MesaMonitoreo {
   templateUrl: './guardia-puerta.html',
   styleUrl: './guardia-puerta.css',
 })
-export class GuardiaPuerta implements OnInit {
+export class GuardiaPuerta implements OnInit, OnDestroy {
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private firestore = inject(Firestore);
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
+  private injector = inject(EnvironmentInjector);
+
+  private unsubscribePedidos?: Unsubscribe;
+  private unsubscribeRestaurante?: Unsubscribe;
 
   guardiaActual: { nombre: string; dni: string; turno: string } | null = null;
+  restaurantId: string = 'moscu';
+  nombreRestaurante: string = 'Picantería Moscú';
+  restaurantIconUrl: string = '';
+
   todasLasMesas: MesaMonitoreo[] = [];
   
-  filtroEstado: 'todas' | 'libres' | 'ocupadas' = 'todas';
+  filtroEstado: 'libres' | 'ocupadas' = 'ocupadas';
   busquedaMesa: string = '';
 
   mesaSeleccionadaDetalle: MesaMonitoreo | null = null;
 
   ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      if (params['local']) {
+        this.restaurantId = params['local'].trim().toLowerCase();
+      }
+    });
+
     this.verificarSesionPersonal();
-    this.cargar100Mesas();
+    this.cargarDatosRestaurante();
+    this.inicializar100MesasVacias();
+    this.escucharPedidosPuertaFirestore();
+  }
+
+  ngOnDestroy(): void {
+    if (this.unsubscribePedidos) this.unsubscribePedidos();
+    if (this.unsubscribeRestaurante) this.unsubscribeRestaurante();
   }
 
   verificarSesionPersonal(): void {
     const sesionData = localStorage.getItem('sesion_picanteria');
     if (sesionData) {
       const sesion = JSON.parse(sesionData);
-      if (sesion.rol !== 'guardia') {
+      if (sesion.rol !== 'guardia' && sesion.rol !== 'admin') {
         Swal.fire('Acceso Denegado', '⚠️ Área exclusiva para personal de seguridad.', 'error');
         this.router.navigate(['/login']);
         return;
@@ -55,6 +89,24 @@ export class GuardiaPuerta implements OnInit {
     } else {
       this.router.navigate(['/login']);
     }
+  }
+
+  cargarDatosRestaurante(): void {
+    runInInjectionContext(this.injector, () => {
+      const restRef = collection(this.firestore, 'restaurantes');
+      const qRest = query(restRef, where('restaurantId', '==', this.restaurantId));
+
+      this.unsubscribeRestaurante = onSnapshot(qRest, (snapshot: QuerySnapshot<DocumentData>) => {
+        this.ngZone.run(() => {
+          if (!snapshot.empty) {
+            const restData = snapshot.docs[0].data();
+            this.nombreRestaurante = restData['nombre'] || restData['nombreRestaurante'] || 'Picantería Moscú';
+            this.restaurantIconUrl = restData['logoUrl'] || restData['logo'] || restData['icono'] || '';
+          }
+          this.cdr.detectChanges();
+        });
+      });
+    });
   }
 
   cerrarTurno(): void {
@@ -75,49 +127,72 @@ export class GuardiaPuerta implements OnInit {
     });
   }
 
-  cargar100Mesas(): void {
+  inicializar100MesasVacias(): void {
     const lista: MesaMonitoreo[] = [];
     for (let i = 1; i <= 100; i++) {
-      if (i === 1) {
-        lista.push({
-          numeroMesa: 1,
-          cliente: 'Juan Pérez',
-          items: [
-            { nombre: 'Ceviche Mixto Tradicional', cantidad: 1 },
-            { nombre: 'Jarra de Chicha Morada', cantidad: 1 }
-          ],
-          total: 57.00,
-          estadoPago: 'pendiente',
-          estadoMesa: 'ocupada',
-          salidaAutorizada: false
-        });
-      } else if (i === 3) {
-        lista.push({
-          numeroMesa: 3,
-          cliente: 'Gicson Rivas',
-          items: [
-            { nombre: 'Arroz con Pato Norteño', cantidad: 1 },
-            { nombre: 'Chicharrón de Calamar', cantidad: 1 }
-          ],
-          total: 70.00,
-          estadoPago: 'pagado',
-          estadoMesa: 'ocupada',
-          salidaAutorizada: false
-        });
-      } else {
-        lista.push({
-          numeroMesa: i,
-          estadoMesa: 'libre'
-        });
-      }
+      lista.push({
+        numeroMesa: i,
+        estadoMesa: 'libre'
+      });
     }
     this.todasLasMesas = lista;
+  }
+
+  escucharPedidosPuertaFirestore(): void {
+    runInInjectionContext(this.injector, () => {
+      try {
+        const pedidosRef = collection(this.firestore, 'pedidos');
+        const q = query(pedidosRef, where('restaurantId', '==', this.restaurantId));
+
+        this.unsubscribePedidos = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+          // Forzamos la ejecución dentro de NgZone para que la UI reaccione al instante
+          this.ngZone.run(() => {
+            this.inicializar100MesasVacias();
+
+            snapshot.docs.forEach(docSnap => {
+              const data = docSnap.data();
+              const numMesa = Number(data['numeroMesa'] || 1);
+              const estadoGlobal = data['estado'] || 'solicitado';
+              
+              // Si el pedido ya está pagado/archivado, no se muestra en puerta
+              if (estadoGlobal === 'pagado') {
+                return; 
+              }
+
+              const totalDoc = Number(data['total'] || 0);
+              const clienteDoc = data['cliente'] || data['nombreCliente'] || 'Consumidor';
+              const itemsBrutos = data['items'] || [];
+              
+              const items: ItemConsumo[] = itemsBrutos.map((i: any) => ({
+                nombre: i.nombre || 'Plato',
+                cantidad: Number(i.cantidad || 1)
+              }));
+
+              const mesaIndex = this.todasLasMesas.findIndex(m => m.numeroMesa === numMesa);
+              if (mesaIndex !== -1) {
+                this.todasLasMesas[mesaIndex] = {
+                  numeroMesa: numMesa,
+                  estadoMesa: 'ocupada',
+                  cliente: clienteDoc,
+                  items: items,
+                  total: totalDoc,
+                  estadoPago: estadoGlobal === 'pagado' ? 'pagado' : 'pendiente'
+                };
+              }
+            });
+
+            this.cdr.detectChanges();
+          });
+        });
+      } catch (err) {
+        console.error('Error escuchando pedidos en puerta:', err);
+      }
+    });
   }
 
   get mesasFiltradas(): MesaMonitoreo[] {
     return this.todasLasMesas.filter(m => {
       const cumpleFiltroEstado = 
-        this.filtroEstado === 'todas' ? true :
         this.filtroEstado === 'libres' ? m.estadoMesa === 'libre' :
         m.estadoMesa === 'ocupada';
 
@@ -145,37 +220,24 @@ export class GuardiaPuerta implements OnInit {
 
   autorizarSalida(mesa: MesaMonitoreo): void {
     if (mesa.estadoPago === 'pagado') {
-      mesa.salidaAutorizada = true;
-      this.cerrarModalDetalle(); // Cerramos el modal flotante del ojito
-
-      // Alerta fija de SweetAlert2 con botón manual de confirmación
+      this.cerrarModalDetalle();
       Swal.fire({
         icon: 'success',
         title: '¡Salida Autorizada!',
-        text: `La Mesa N° ${mesa.numeroMesa} ha sido LIBERADA exitosamente y ya figura como DISPONIBLE.`,
+        text: `La Mesa N° ${mesa.numeroMesa} ha cancelado su cuenta. Puede retirarse con seguridad.`,
         confirmButtonText: '¡OK! 👊',
-        confirmButtonColor: '#10b981', // Verde
-        allowOutsideClick: false // Obliga al guardia a presionar el botón de confirmación
+        confirmButtonColor: '#10b981',
+        allowOutsideClick: false
       });
-
-      // Liberamos la mesa en la data
-      mesa.estadoMesa = 'libre';
-      mesa.cliente = undefined;
-      mesa.items = undefined;
-      mesa.total = undefined;
-      mesa.estadoPago = undefined;
-      mesa.salidaAutorizada = false;
-
     } else {
       Swal.fire({
         icon: 'warning',
-        title: '¡Pago Pendiente!',
-        text: `La Mesa N° ${mesa.numeroMesa} aún no ha cancelado la cuenta en caja. No se puede autorizar la salida.`,
-        confirmButtonText: '¡OK! 👊',
-        confirmButtonColor: '#d97706', // Naranja
+        title: '⚠️ ¡Pago Pendiente!',
+        text: `La Mesa N° ${mesa.numeroMesa} aún figura con deuda en el sistema. ¡No autorizar salida!`,
+        confirmButtonText: 'Entendido 🛡️',
+        confirmButtonColor: '#d97706',
         allowOutsideClick: false
       });
     }
   }
-
 }

@@ -39,6 +39,7 @@ export interface MesaSalon {
 }
 
 export interface MesaCobradaHistorial {
+  idDocumento?: string;
   numeroMesa: number;
   total: number;
   items: ItemMesaMozo[];
@@ -168,19 +169,40 @@ export class MozoAtencion implements OnInit, OnDestroy {
             const mozoEnBD = data['mozoAsignado'] || null;
             const solicitandoCobro = data['solicitandoCobro'] || false;
 
+            // if (estadoGlobal === 'pagado') {
+            //   const yaExisteEnHistorial = this.mesasCobradasHistorial.some(h => h.numeroMesa === numMesa && h.total === totalDoc);
+            //   if (!yaExisteEnHistorial) {
+            //     const ahora = new Date();
+            //     const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+            //     const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+            //     this.mesasCobradasHistorial.unshift({
+            //       numeroMesa: numMesa,
+            //       total: totalDoc,
+            //       items: items,
+            //       fecha: `${fechaCorta} - ${horaCorta}`
+            //     });
+            //   }
+            //   return;
+            // }
+
             if (estadoGlobal === 'pagado') {
-              const yaExisteEnHistorial = this.mesasCobradasHistorial.some(h => h.numeroMesa === numMesa && h.total === totalDoc);
+              // ⚡ VALIDACIÓN ANTI-DUPLICIDAD: Usamos el ID del documento de Firestore o una clave única combinada
+              const idUnicoCobro = docSnap.id;
+              const yaExisteEnHistorial = this.mesasCobradasHistorial.some((h: any) => h.idDocumento === idUnicoCobro || (h.numeroMesa === numMesa && h.total === totalDoc));
+              
               if (!yaExisteEnHistorial) {
                 const ahora = new Date();
                 const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
                 const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
                 this.mesasCobradasHistorial.unshift({
+                  idDocumento: idUnicoCobro, // 👈 Guardamos el ID único para rastreo
                   numeroMesa: numMesa,
                   total: totalDoc,
                   items: items,
                   fecha: `${fechaCorta} - ${horaCorta}`
-                });
+                } as any);
               }
               return;
             }

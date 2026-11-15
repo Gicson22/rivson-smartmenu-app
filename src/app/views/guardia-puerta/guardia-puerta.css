@@ -114,11 +114,6 @@
   cursor: pointer;
 }
 
-.botones-filtro button.activo {
-  background: #3b82f6;
-  color: white;
-}
-
 /* Grilla de 100 mesas con altura fija uniforme */
 .grid-100-mesas {
   display: grid;
@@ -300,3 +295,10 @@
 
 .btn-accion-modal.pagado { background: #10b981; color: white; }
 .btn-accion-modal.pendiente { background: #d97706; color: white; }
+
+/* Color azul eléctrico brillante para el botón activo del filtro */
+.botones-filtro button.activo {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.4);
+}

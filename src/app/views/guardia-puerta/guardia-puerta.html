@@ -1,35 +1,57 @@
 <div class="guardia-container">
-  <!-- Header Arreglado y Compacto -->
-  <header class="header-guardia">
-    <div class="info-turno">
-      <h1>🚪 Puerta - Moscú</h1>
-      <span *ngIf="guardiaActual" class="badge-guardia-info">
-        🛡️ {{ guardiaActual.nombre }} (DNI: {{ guardiaActual.dni }})
-      </span>
-    </div>
-    <button class="btn-salir-turno" (click)="cerrarTurno()">Cerrar Turno 🚪</button>
-  </header>
-
-  <main class="contenido-guardia">
+  <!-- Header Compacto Estilo Caja con Línea Punteada -->
+  <header class="header-guardia" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background-color: #1e293b; border-bottom: 2px solid #334155; position: sticky; top: 0; z-index: 10;">
     
-    <!-- Filtros y Buscador -->
-    <div class="panel-control-mesas">
-      <div class="stats-rapidas">
-        <span class="pill libre">🟢 Libres: {{ totalLibres }}</span>
-        <span class="pill ocupada">🔴 Ocupadas: {{ totalOcupadas }}</span>
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <!-- Logo y Título en una sola línea fluida -->
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img *ngIf="restaurantIconUrl" [src]="restaurantIconUrl" alt="Logo" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1.5px solid #38bdf8; background: #1e293b;" />
+        <h1 style="font-size: 0.85rem; margin: 0; color: #38bdf8; font-weight: 800;">Puerta - {{ nombreRestaurante }}</h1>
       </div>
 
-      <div class="filtros-busqueda">
+      <button class="btn-salir-turno" (click)="cerrarTurno()" style="padding: 4px 8px; font-size: 0.65rem; background: #7f1d1d; color: #fee2e2; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">Cerrar Turno 🚪</button>
+    </div>
+
+    <!-- Línea punteada de separación -->
+    <div style="width: 100%; border-top: 1px dashed #334155; padding-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-size: 0.7rem; color: #94a3b8;">
+        Guardia: <strong style="color: #e2e8f0;">{{ guardiaActual?.nombre || 'Personal' }}</strong>
+      </span>
+      <span style="font-size: 0.65rem; color: #34d399; font-weight: bold; background: rgba(52, 211, 153, 0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(52, 211, 153, 0.3);">
+        🟢 Turno Activo
+      </span>
+    </div>
+
+  </header>
+
+  <main class="contenido-guardia" style="padding: 12px; display: flex; flex-direction: column; gap: 12px;">
+    
+    <!-- Panel de Controles (Sin pastillas redundantes, contadores integrados y azul activo) -->
+    <div class="panel-control-mesas" style="background: #1e293b; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px;">
+      
+      <div class="filtros-busqueda" style="display: flex; flex-direction: column; gap: 6px;">
         <input 
           type="number" 
           [(ngModel)]="busquedaMesa" 
           placeholder="🔍 N° de Mesa..." 
           class="input-buscar" 
         />
-        <div class="botones-filtro">
-          <button (click)="filtroEstado = 'todas'" [class.activo]="filtroEstado === 'todas'">Todas</button>
-          <button (click)="filtroEstado = 'libres'" [class.activo]="filtroEstado === 'libres'">Libres</button>
-          <button (click)="filtroEstado = 'ocupadas'" [class.activo]="filtroEstado === 'ocupadas'">Ocupadas</button>
+        
+        <!-- Botones con Contadores Integrados y Estado Activo Azul Brillante -->
+        <div class="botones-filtro" style="display: flex; gap: 6px;">
+          <button 
+            (click)="filtroEstado = 'ocupadas'" 
+            [class.activo]="filtroEstado === 'ocupadas'" 
+            style="flex: 1; background: #334155; border: none; color: #cbd5e1; padding: 7px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;">
+            🔴 Ocupadas <span style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem;">{{ totalOcupadas }}</span>
+          </button>
+          
+          <button 
+            (click)="filtroEstado = 'libres'" 
+            [class.activo]="filtroEstado === 'libres'" 
+            style="flex: 1; background: #334155; border: none; color: #cbd5e1; padding: 7px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 6px;">
+            🟢 Libres <span style="background: rgba(0,0,0,0.3); padding: 1px 6px; border-radius: 4px; font-size: 0.7rem;">{{ totalLibres }}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -96,7 +118,7 @@
           class="btn-accion-modal" 
           [ngClass]="mesaSeleccionadaDetalle.estadoPago"
           (click)="autorizarSalida(mesaSeleccionadaDetalle)">
-          {{ mesaSeleccionadaDetalle.estadoPago === 'pagado' ? '🚪 Autorizar Salida y Liberar Mesa' : '🔒 Mesa con Deuda Pendiente' }}
+          {{ mesaSeleccionadaDetalle.estadoPago === 'pagado' ? '🚪 Autorizar Salida / Verificar' : '🔒 Mesa con Deuda Pendiente' }}
         </button>
       </div>
     </div>
