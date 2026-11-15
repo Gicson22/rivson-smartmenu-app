@@ -1,6 +1,6 @@
 <div class="guardia-container">
   <!-- Header Compacto Estilo Caja con Línea Punteada -->
-  <header class="header-guardia" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background-color: #1e293b; border-bottom: 2px solid #334155; position: sticky; top: 0; z-index: 10;">
+  <header class="header-guardia" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; background-color: #1e293b; border-bottom: 2px solid #334155; position: sticky; top: 0; z-index: 100;">
     
     <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
       <!-- Logo y Título en una sola línea fluida -->
@@ -26,8 +26,8 @@
 
   <main class="contenido-guardia" style="padding: 12px; display: flex; flex-direction: column; gap: 12px;">
     
-    <!-- Panel de Controles (Sin pastillas redundantes, contadores integrados y azul activo) -->
-    <div class="panel-control-mesas" style="background: #1e293b; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px;">
+    <!-- 📌 PANEL DE CONTROLES STICKY (Se queda fijo al hacer scroll debajo del header) -->
+    <div class="panel-control-mesas" style="background: #1e293b; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 92px; z-index: 90; border: 1px solid #334155; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
       
       <div class="filtros-busqueda" style="display: flex; flex-direction: column; gap: 6px;">
         <input 
@@ -56,7 +56,7 @@
       </div>
     </div>
 
-    <!-- Cuadrícula de 100 Mesas con Tamaño Uniforme -->
+    <!-- Cuadrícula Dinámica de Mesas (Basada en la configuración de la dueña) -->
     <div class="grid-100-mesas">
       <div *ngFor="let mesa of mesasFiltradas" class="card-mesa-grid" [ngClass]="mesa.estadoMesa">
         

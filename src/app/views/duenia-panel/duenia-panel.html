@@ -1,39 +1,230 @@
 <div class="gerencia-container">
   
-  <!-- 1. HEADER PRINCIPAL -->
-  <header class="saas-header">
-    <div class="header-fila-superior">
-      <img *ngIf="logoUrlActivo; else iconoDefault" [src]="logoUrlActivo" class="logo-local" alt="Logo" />
-      <ng-template #iconoDefault>
-        <div class="logo-placeholder">🍲</div>
-      </ng-template>
-      <h1 class="titulo-local">👑 {{ nombreLocalActivo }}</h1>
-    </div>
-    
-    <div class="header-fila-inferior">
-      <p class="subtitulo-admin">Bienvenido(a): <span class="nombre-dueña-badge">{{ nombreDueniaActiva }}</span></p>
-      <button class="btn-salir-fuera" (click)="cerrarSesion()">
-        🚪 Salir
-      </button>
-    </div>
-  </header>
+  <!-- CONTENEDOR FIJO SUPERIOR COMPACTO (Únicamente Header y Pestañas principales) -->
+  <div class="header-sticky-wrapper">
+    <!-- 1. HEADER PRINCIPAL COMPACTO -->
+    <header class="saas-header">
+      <div class="header-fila-superior">
+        <img *ngIf="logoUrlActivo; else iconoDefault" [src]="logoUrlActivo" class="logo-local" alt="Logo" />
+        <ng-template #iconoDefault>
+          <div class="logo-placeholder">🍲</div>
+        </ng-template>
+        <h1 class="titulo-local">👑 {{ nombreLocalActivo }}</h1>
+      </div>
+      
+      <div class="header-fila-inferior">
+        <p class="subtitulo-admin">Bienvenido(a): <span class="nombre-dueña-badge">{{ nombreDueniaActiva }}</span></p>
+        <button class="btn-salir-fuera" (click)="cerrarSesion()">
+          🚪 Salir
+        </button>
+      </div>
+    </header>
 
-  <!-- 2. NAVBAR DE PESTAÑAS -->
-  <nav class="gerencia-navbar-tabs">
-    <button [class.active]="tabActiva === 'personal'" (click)="tabActiva = 'personal'">
-      👥 Personal
-    </button>
-    <button [class.active]="tabActiva === 'carta'" (click)="tabActiva = 'carta'; cargarProductosLocal()">
-      🍲 Carta
-    </button>
-    <button [class.active]="tabActiva === 'config'" (click)="tabActiva = 'config'">
-      🎨 Mi Logo
-    </button>
-  </nav>
+    <!-- 2. NAVBAR DE PESTAÑAS COMPACTO -->
+    <nav class="gerencia-navbar-tabs">
+      <button [class.active]="tabActiva === 'ventas'" (click)="tabActiva = 'ventas'; escucharDatosFinancierosDuena()">
+        📊 Ventas & Caja
+      </button>
+      <button [class.active]="tabActiva === 'mesas-config'" (click)="tabActiva = 'mesas-config'">
+        🚪 Mesas
+      </button>
+      <button [class.active]="tabActiva === 'personal'" (click)="tabActiva = 'personal'">
+        👥 Personal
+      </button>
+      <button [class.active]="tabActiva === 'carta'" (click)="tabActiva = 'carta'; cargarProductosLocal()">
+        🍲 Carta
+      </button>
+      <button [class.active]="tabActiva === 'config'" (click)="tabActiva = 'config'">
+        🎨 Mi Logo
+      </button>
+      <button [class.active]="tabActiva === 'qr-mesas'" (click)="tabActiva = 'qr-mesas'">
+        🖨️ QR Mesas
+      </button>
+      <button [class.active]="tabActiva === 'historial-cierres'" (click)="tabActiva = 'historial-cierres'; cargarHistorialCierres()">
+        📜 Historial de caja
+      </button>
+    </nav>
+  </div>
 
   <main class="contenido-gerencia">
     
-    <!-- ================= PESTAÑA 1: GESTIÓN DE PERSONAL ================= -->
+    <!-- ================= PESTAÑA 1: VENTAS Y CAJA ================= -->
+    <div *ngIf="tabActiva === 'ventas'" class="tab-contenido" style="display: flex; flex-direction: column; gap: 12px;">
+      
+      <!-- Tarjetas Resumen Financiero Ejecutivo -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
+        <div style="background: #1e293b; border: 1px solid #334155; padding: 12px; border-radius: 10px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">💰 Ventas en Caja (Turno Actual)</span>
+          <span style="font-size: 1.15rem; color: #34d399; font-weight: 800;">S/ {{ totalVentasCajaHoy.toFixed(2) }}</span>
+        </div>
+
+        <div style="background: #1e293b; border: 1px solid #334155; padding: 12px; border-radius: 10px; display: flex; flex-direction: column; gap: 4px;">
+          <span style="font-size: 0.7rem; color: #94a3b8; font-weight: bold;">🛎️ Plata con Mozos (Activa)</span>
+          <span style="font-size: 1.15rem; color: #38bdf8; font-weight: 800;">S/ {{ totalPlataConMozos.toFixed(2) }}</span>
+        </div>
+      </div>
+
+      <!-- 🔒 BOTÓN MAESTRO DE CIERRE DE CAJA Y ARQUEO -->
+      <div class="card-seccion" style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #3b82f6; text-align: center; padding: 14px;">
+        <h2 style="color: #38bdf8; font-size: 0.85rem; margin-bottom: 6px;">Arqueo y Cierre de Turno</h2>
+        <p style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 12px;">
+          Valida tu dinero en efectivo y Yape, respalda la venta actual en el historial y deja el sistema en ceros para el siguiente turno.
+        </p>
+        <button class="btn-cerrar-caja-maestro" (click)="confirmarCierreDeCaja()">
+          🔒 Cerrar Caja y Reiniciar Turno
+        </button>
+      </div>
+
+      <!-- Historial de cobros con Scroll Interno y Suma Total Abajo -->
+      <section class="card-seccion">
+        <h2>🧾 Cuentas Cobradas Recientemente (Turno Actual)</h2>
+        
+        <!-- Contenedor scroller para la tabla -->
+        <div class="tabla-scroller-cobros">
+          <table>
+            <thead>
+              <tr>
+                <th>Mesa</th>
+                <th>Total</th>
+                <th>Hora</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let c of ultimosCobrosDuena">
+                <td><strong>Mesa N° {{ c.numeroMesa }}</strong></td>
+                <td style="color: #34d399; font-weight: bold;">S/ {{ c.total.toFixed(2) }}</td>
+                <td style="color: #94a3b8; font-size: 0.72rem;">{{ c.fecha }}</td>
+              </tr>
+              <tr *ngIf="ultimosCobrosDuena.length === 0">
+                <td colspan="3" class="sin-datos">No hay cobros registrados en este turno.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Fila resumen con la suma total abajo -->
+        <div class="footer-suma-cobros" *ngIf="ultimosCobrosDuena.length > 0">
+          <span>Suma total mostrada:</span>
+          <span class="txt-suma-total">S/ {{ calcularSumaCobrosVisibles().toFixed(2) }}</span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ================= NUEVA PESTAÑA: HISTORIAL DE CIERRES DE CAJA ================= -->
+    <div *ngIf="tabActiva === 'historial-cierres'" class="tab-contenido" style="display: flex; flex-direction: column; gap: 12px;">
+      <section class="card-seccion">
+        <h2 style="font-size: 0.95rem; color: #38bdf8; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+          📜 Historial de Cierres de Caja Anteriores
+        </h2>
+        <p style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 12px; line-height: 1.3;">
+          Registro histórico detallado de todos los turnos cerrados, validados y archivados previamente en el local.
+        </p>
+
+        <!-- Contenedor con scroll horizontal fluido y altura controlada -->
+        <div class="tabla-responsive-historial" style="width: 100%; overflow-x: auto; border-radius: 8px; border: 1px solid #334155; background: #0f172a; scrollbar-width: thin; scrollbar-color: #38bdf8 #0f172a;">
+          <table style="width: 100%; min-width: 480px; border-collapse: collapse; font-size: 0.78rem;">
+            <thead>
+              <tr style="background: #1e293b; border-bottom: 2px solid #334155;">
+                <th style="padding: 10px 12px; color: #38bdf8; text-align: left; white-space: nowrap;">📅 Fecha de Cierre</th>
+                <th style="padding: 10px 12px; color: #38bdf8; text-align: left; white-space: nowrap;">👤 Responsable</th>
+                <th style="padding: 10px 12px; color: #38bdf8; text-align: center; white-space: nowrap;">🧾 Tickets</th>
+                <th style="padding: 10px 12px; color: #34d399; text-align: right; white-space: nowrap;">💰 Total Recaudado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let cierre of listaHistorialCierres" style="border-bottom: 1px solid #1e293b; transition: background 0.15s;">
+                <td style="padding: 10px 12px; color: #f8fafc; white-space: nowrap;">
+                  <strong>{{ formatFechaCierre(cierre.fechaCierre) }}</strong>
+                </td>
+                <td style="padding: 10px 12px; color: #cbd5e1; white-space: nowrap;">
+                  {{ cierre.responsable }}
+                </td>
+                <td style="padding: 10px 12px; text-align: center; white-space: nowrap;">
+                  <span style="background: #334155; color: #38bdf8; padding: 3px 8px; border-radius: 12px; font-weight: 700; font-size: 0.7rem;">
+                    {{ cierre.cantidadTickets }} tk
+                  </span>
+                </td>
+                <td style="padding: 10px 12px; color: #34d399; font-weight: 800; text-align: right; white-space: nowrap; font-size: 0.85rem;">
+                  S/ {{ cierre.totalRecaudado.toFixed(2) }}
+                </td>
+              </tr>
+              <tr *ngIf="listaHistorialCierres.length === 0">
+                <td colspan="4" class="sin-datos" style="padding: 24px; text-align: center; color: #94a3b8; font-style: italic;">
+                  No hay cierres de caja históricos registrados todavía.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= PESTAÑA 2: MESAS ================= -->
+    <div *ngIf="tabActiva === 'mesas-config'" class="tab-contenido" style="display: flex; flex-direction: column; gap: 12px;">
+      
+      <!-- Monitoreo Interactivo de Mesas -->
+      <section class="card-seccion">
+        <!-- 🎯 Título arriba ocupando todo el ancho -->
+        <h2 style="font-size: 0.9rem; color: #38bdf8; margin-bottom: 8px;">
+          🚪 Monitoreo de {{ totalMesasConfiguradas }} Mesas
+        </h2>
+
+        <!-- 🎯 Pastilla compacta en una sola línea -->
+        <div style="display: flex; justify-content: space-between; align-items: center; background: #0b0f19; padding: 10px 12px; border-radius: 8px; border: 1px solid #334155; margin-bottom: 10px; font-size: 0.75rem; white-space: nowrap;">
+          <span style="color: #94a3b8; font-weight: 500;">Estado:</span>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="color: #cbd5e1;">🟢 Libres: <strong style="color: #34d399;">{{ totalMesasLibresDuena }}</strong></span>
+            <span style="color: #475569;">|</span>
+            <span style="color: #cbd5e1;">🔴 Ocupadas: <strong style="color: #f87171;">{{ totalMesasOcupadasDuena }}</strong></span>
+          </div>
+        </div>
+
+        <p style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 12px;">
+          Vista general en tiempo real de la ocupación del restaurante. <i>(Haz clic en una mesa roja para ver su consumo)</i>.
+        </p>
+        
+        <!-- Cuadrícula interactiva -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(55px, 1fr)); gap: 6px; max-height: 280px; overflow-y: auto; padding: 6px; background: #0f172a; border-radius: 8px; border: 1px solid #334155;">
+          <div *ngFor="let m of listaMesasDuena" 
+               (click)="verDetalleMesaDuena(m)"
+               [style.background]="m.estado === 'ocupada' ? '#7f1d1d' : '#064e3b'"
+               [style.color]="m.estado === 'ocupada' ? '#fca5a5' : '#34d399'"
+               [style.cursor]="m.estado === 'ocupada' ? 'pointer' : 'default'"
+               style="padding: 8px 4px; border-radius: 6px; text-align: center; font-size: 0.7rem; font-weight: bold; border: 1px solid rgba(255,255,255,0.15); transition: transform 0.1s;">
+            M{{ m.numero }}
+          </div>
+        </div>
+      </section>
+
+      <!-- Ajuste de Capacidad -->
+      <section class="card-seccion">
+        <h2>⚙️ Configuración de Capacidad de Mesas</h2>
+        <p style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 14px; line-height: 1.3;">
+          Define cuántas mesas tiene habilitadas tu local. El sistema actualizará automáticamente la cuadrícula para el guardia, los mozos y tu panel de control.
+        </p>
+
+        <div class="form-grid" style="max-width: 320px;">
+          <div class="campo">
+            <label>Número Total de Mesas:</label>
+            <input 
+              type="number" 
+              min="1" 
+              max="200" 
+              [(ngModel)]="inputCantidadMesas" 
+              placeholder="Ej: 50" 
+              class="input-control" />
+          </div>
+        </div>
+
+        <button class="btn-guardar" style="max-width: 320px; margin-top: 10px;" (click)="guardarCantidadMesasLocal()">
+          💾 Guardar Capacidad de Mesas
+        </button>
+      </section>
+
+    </div>
+
+    <!-- ================= PESTAÑA 3: PERSONAL ================= -->
     <div *ngIf="tabActiva === 'personal'" class="tab-contenido">
       <section class="card-seccion">
         <h2>👤 Registrar Nuevo Trabajador</h2>
@@ -178,8 +369,8 @@
       </section>
     </div>
 
-    <!-- ================= PESTAÑA 2: GESTIÓN DE CARTA Y PRECIOS ================= -->
-    <div *ngIf="tabActiva === 'carta'" class="tab-contenido">
+    <!-- ================= PESTAÑA 4: CARTA ================= -->
+    <div *ngIf="tabActiva === 'carta'" class="tab-contenido" style="display: flex; flex-direction: column; gap: 12px;">
       
       <!-- FORMULARIO DE REGISTRO / EDICIÓN -->
       <section class="card-seccion">
@@ -271,36 +462,36 @@
         </div>
       </section>
 
-      <!-- SECCIÓN DE CATEGORÍAS DESLIZABLES (Estilo Zapatillas en 2 columnas) -->
+      <!-- 📌 NAVBAR DE CATEGORÍAS (Ubicado aquí, justo en la sección de la carta, con posición sticky independiente) -->
+      <div class="chips-categorias-container">
+        <button [class.active]="categoriaSeleccionada === 'todos'" (click)="categoriaSeleccionada = 'todos'">
+          ✨ Todos
+        </button>
+        <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="categoriaSeleccionada = 'ceviches'">
+          🐟 Ceviches
+        </button>
+        <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="categoriaSeleccionada = 'sudados'">
+          🍲 Sudados
+        </button>
+        <button [class.active]="categoriaSeleccionada === 'secos'" (click)="categoriaSeleccionada = 'secos'">
+          🥩 Secos
+        </button>
+        <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="categoriaSeleccionada = 'jaleas'">
+          🍤 Jaleas
+        </button>
+        <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">
+          🥤 Bebidas
+        </button>
+      </div>
+
+      <!-- SECCIÓN DE LA CARTA ACTUAL (GRILLA DE CARDS) -->
       <section class="card-seccion">
         <div class="tabla-header">
           <h2 class="titulo-seccion-carta-actual">📋 Carta Actual del Local</h2>
           <span class="total-badge">Total: {{ listaProductosCarta.length }}</span>
         </div>
 
-        <!-- Navbar Deslizable de Categorías (Sticky) -->
-        <div class="chips-categorias-container">
-          <button [class.active]="categoriaSeleccionada === 'todos'" (click)="categoriaSeleccionada = 'todos'">
-            ✨ Todos
-          </button>
-          <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="categoriaSeleccionada = 'ceviches'">
-            🐟 Ceviches
-          </button>
-          <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="categoriaSeleccionada = 'sudados'">
-            🍲 Sudados
-          </button>
-          <button [class.active]="categoriaSeleccionada === 'secos'" (click)="categoriaSeleccionada = 'secos'">
-            🥩 Secos
-          </button>
-          <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="categoriaSeleccionada = 'jaleas'">
-            🍤 Jaleas
-          </button>
-          <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">
-            🥤 Bebidas
-          </button>
-        </div>
-
-        <!-- GRILLA DE CARDS (De 2 en 2 simultáneas) -->
+        <!-- GRILLA DE CARDS -->
         <div class="productos-grid-cards">
           <div *ngFor="let p of filtrarProductosPorCategoria()" class="producto-card-item">
             
@@ -354,7 +545,7 @@
 
     </div>
 
-    <!-- ================= PESTAÑA 3: CONFIGURACIÓN DE MARCA Y LOGO ================= -->
+    <!-- ================= PESTAÑA 5: CONFIGURACIÓN DE MARCA Y LOGO ================= -->
     <div *ngIf="tabActiva === 'config'" class="tab-contenido">
       <section class="card-seccion">
         <h2>🎨 Logotipo del Local</h2>
@@ -396,6 +587,78 @@
           {{ cargandoLogoDuenia ? '⏳ Subiendo a la nube...' : '💾 Guardar Logotipo' }}
         </button>
       </section>
+    </div>
+
+    <!-- ================= PESTAÑA 6: GENERADOR E IMPRESIÓN DE QR DE MESAS ================= -->
+    <div *ngIf="tabActiva === 'qr-mesas'" class="tab-contenido" style="display: flex; flex-direction: column; gap: 12px;">
+      
+      <section class="card-seccion" style="background: #1e293b; border: 1px solid #334155;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 2px;">
+          <div>
+            <h2 style="color: #38bdf8; margin: 0; font-size: 0.95rem;">🖨️ Generador de Códigos QR para el Salón</h2>
+            <p style="font-size: 0.72rem; color: #94a3b8; margin: 4px 0 0 0;">
+              Imprime los stickers oficiales para las {{ totalMesasConfiguradas }} mesas de tu local.
+            </p>
+          </div>
+          
+          <!-- 🎯 Controles alineados perfectamente en una sola línea horizontal -->
+          <div style="display: flex; gap: 8px; align-items: center; width: 100%; justify-content: flex-end;">
+            
+            <!-- Dropdown con ancho flexible -->
+            <div class="dropdown-personalizado-wrapper" style="flex: 1; max-width: 180px;">
+              <button type="button" class="input-control btn-dropdown-trigger" (click)="toggleMenuQr($event)">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ obtenerTextoSeleccionadoQr() }}</span>
+                <span style="font-size: 0.65rem; flex-shrink: 0;">▼</span>
+              </button>
+
+              <!-- Menú flotante con scroll de 6 elementos -->
+              <div *ngIf="menuQrAbierto" class="dropdown-menu-flotante">
+                <div class="dropdown-item-opcion" (click)="seleccionarOpcionQr('todos')">
+                  📋 Todas las Mesas
+                </div>
+                <div *ngFor="let m of listaMesasDuena" class="dropdown-item-opcion" (click)="seleccionarOpcionQr(m.numero)">
+                  Mesa N° {{ m.numero }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Botón de impresión al costado en la misma línea -->
+            <button class="btn-guardar" style="width: auto; padding: 7px 14px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); font-size: 0.75rem; white-space: nowrap; margin: 0;" (click)="imprimirQrsMesas()">
+              🖨️ Imprimir QR
+            </button>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- Contenedor de Tarjetas QR (Diseño optimizado y de tamaño real comercial) -->
+      <div class="qr-grid-impresion" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+        
+        <div *ngFor="let m of filtrarMesasParaImprimir()" class="card-qr-mesa" style="background: #ffffff; color: #0f172a; border-radius: 14px; padding: 16px; text-align: center; border: 2px solid #cbd5e1; display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          
+          <!-- 1. Cabecera: Logo y Nombre del Local centrados -->
+          <div style="display: flex; align-items: center; justify-content: center; gap: 10px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; width: 100%;">
+            <img [src]="logoUrlActivo || 'img/logo-moscu.png'" style="width: 38px; height: 38px; object-fit: contain; border-radius: 8px; background: #f8fafc; padding: 2px; border: 1px solid #cbd5e1;" alt="Logo" />
+            <span style="font-size: 0.85rem; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">{{ nombreLocalActivo }}</span>
+          </div>
+
+          <!-- 2. Barra Oscura de Mesa con diseño píldora redondeada -->
+          <div style="background: #0f172a; color: #ffffff; font-size: 0.9rem; font-weight: 900; padding: 6px 14px; border-radius: 8px; width: 100%; letter-spacing: 1px; text-transform: uppercase;">
+            MESA N° {{ m.numero }}
+          </div>
+
+          <!-- 3. Imagen del QR centrada y de excelente resolución -->
+          <div style="background: white; padding: 4px; border-radius: 8px;">
+            <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://rivson-smartmenu.web.app/menu?local=' + restaurantIdActivo + '&mesa=' + m.numero" 
+                style="width: 155px; height: 155px; display: block; margin: 0 auto;" 
+                alt="QR Mesa" />
+          </div>
+
+          <!-- 4. Pie de página en mayúsculas -->
+          <span style="font-size: 0.6rem; color: #334155; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Escanea para ver la carta y pedir</span>
+        </div>
+
+      </div>
     </div>
 
   </main>

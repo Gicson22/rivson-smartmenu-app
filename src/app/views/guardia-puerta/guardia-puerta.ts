@@ -51,6 +51,8 @@ export class GuardiaPuerta implements OnInit, OnDestroy {
   nombreRestaurante: string = 'Picantería Moscú';
   restaurantIconUrl: string = '';
 
+  // 🎯 Capacidad dinámica real definida por la dueña (Se actualizará desde Firestore)
+  totalMesasConfiguradas: number = 30; 
   todasLasMesas: MesaMonitoreo[] = [];
   
   filtroEstado: 'libres' | 'ocupadas' = 'ocupadas';
@@ -66,8 +68,7 @@ export class GuardiaPuerta implements OnInit, OnDestroy {
     });
 
     this.verificarSesionPersonal();
-    this.cargarDatosRestaurante();
-    this.inicializar100MesasVacias();
+    this.cargarDatosRestauranteYMesas();
     this.escucharPedidosPuertaFirestore();
   }
 
@@ -91,7 +92,7 @@ export class GuardiaPuerta implements OnInit, OnDestroy {
     }
   }
 
-  cargarDatosRestaurante(): void {
+  cargarDatosRestauranteYMesas(): void {
     runInInjectionContext(this.injector, () => {
       const restRef = collection(this.firestore, 'restaurantes');
       const qRest = query(restRef, where('restaurantId', '==', this.restaurantId));
@@ -102,11 +103,29 @@ export class GuardiaPuerta implements OnInit, OnDestroy {
             const restData = snapshot.docs[0].data();
             this.nombreRestaurante = restData['nombre'] || restData['nombreRestaurante'] || 'Picantería Moscú';
             this.restaurantIconUrl = restData['logoUrl'] || restData['logo'] || restData['icono'] || '';
+            
+            // 🎯 Leemos estrictamente lo que configuró la dueña
+            if (restData['totalMesas']) {
+              this.totalMesasConfiguradas = Number(restData['totalMesas']);
+            }
           }
+          
+          this.inicializarMesasDinamicas();
           this.cdr.detectChanges();
         });
       });
     });
+  }
+
+  inicializarMesasDinamicas(): void {
+    const lista: MesaMonitoreo[] = [];
+    for (let i = 1; i <= this.totalMesasConfiguradas; i++) {
+      lista.push({
+        numeroMesa: i,
+        estadoMesa: 'libre'
+      });
+    }
+    this.todasLasMesas = lista;
   }
 
   cerrarTurno(): void {
@@ -127,17 +146,6 @@ export class GuardiaPuerta implements OnInit, OnDestroy {
     });
   }
 
-  inicializar100MesasVacias(): void {
-    const lista: MesaMonitoreo[] = [];
-    for (let i = 1; i <= 100; i++) {
-      lista.push({
-        numeroMesa: i,
-        estadoMesa: 'libre'
-      });
-    }
-    this.todasLasMesas = lista;
-  }
-
   escucharPedidosPuertaFirestore(): void {
     runInInjectionContext(this.injector, () => {
       try {
@@ -145,16 +153,15 @@ export class GuardiaPuerta implements OnInit, OnDestroy {
         const q = query(pedidosRef, where('restaurantId', '==', this.restaurantId));
 
         this.unsubscribePedidos = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-          // Forzamos la ejecución dentro de NgZone para que la UI reaccione al instante
           this.ngZone.run(() => {
-            this.inicializar100MesasVacias();
+            // Reiniciamos con el layout dinámico de la dueña antes de mapear
+            this.inicializarMesasDinamicas();
 
             snapshot.docs.forEach(docSnap => {
               const data = docSnap.data();
               const numMesa = Number(data['numeroMesa'] || 1);
               const estadoGlobal = data['estado'] || 'solicitado';
               
-              // Si el pedido ya está pagado/archivado, no se muestra en puerta
               if (estadoGlobal === 'pagado') {
                 return; 
               }

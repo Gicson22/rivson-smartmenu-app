@@ -1,13 +1,21 @@
-import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, runInInjectionContext, EnvironmentInjector } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectorRef, runInInjectionContext, EnvironmentInjector, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Firestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot } from '@angular/fire/firestore';
+import { Firestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, where, onSnapshot, Unsubscribe } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 
 import { UsuarioTrabajador, RolTrabajador } from '../../models/usuario';
 import { Producto } from '../../models/pedido';
 import { CloudinaryService } from '../../services/cloudinary.service';
+
+interface MesaDuenaMonitoreo {
+  numero: number;
+  estado: 'libre' | 'ocupada';
+  cliente?: string;
+  total?: number;
+  items?: { nombre: string; cantidad: number; precioSeleccionado: number }[];
+}
 
 @Component({
   selector: 'app-duenia-panel',
@@ -23,8 +31,15 @@ export class DueniaPanel implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private injector = inject(EnvironmentInjector);
 
-  tabActiva: 'personal' | 'carta' | 'config' = 'personal';
+  tabActiva: 'ventas' | 'mesas-config' | 'personal' | 'carta' | 'config' | 'qr-mesas' | 'historial-cierres' = 'ventas';
 
+  // Selector para imprimir todas o una mesa individual
+  mesaSeleccionadaImpresion: string | number = 'todos';
+
+  // Variables de control para el menú desplegable personalizado de QR
+  menuQrAbierto: boolean = false;
+
+  listaHistorialCierres: any[] = [];
   usuarios: UsuarioTrabajador[] = [];
   cargandoRegistro: boolean = false;
   
@@ -33,7 +48,11 @@ export class DueniaPanel implements OnInit, OnDestroy {
   nombreDueniaActiva: string = 'Administrador(a)';
   logoUrlActivo: string = '';
 
-  // Control para cambiar logo de la dueña
+  // Configuración de mesas
+  totalMesasConfiguradas: number = 30;
+  inputCantidadMesas: number = 30;
+
+  // Control para cambiar logo
   archivoLogoDuena: File | null = null;
   previewLogoDuena: string | null = null;
   cargandoLogoDuenia: boolean = false;
@@ -44,16 +63,25 @@ export class DueniaPanel implements OnInit, OnDestroy {
   nuevoRol: RolTrabajador = 'cocina';
   verPasswordNuevo: boolean = false;
 
-  // Nuevas variables para porciones múltiples estilo El Moscú
   prodTienePorciones: boolean = false;
   prodPrecioPersonal: number | null = null;
   prodPrecioMediano: number | null = null;
   prodPrecioFamiliar: number | null = null;
 
-  // Filtro por categoría en la vista de la dueña
   categoriaSeleccionada: string = 'todos';
 
-  // 🍲 Estado de Carta y Subida de Archivo
+  // Variables de Ventas & Caja y Mesas
+  totalVentasCajaHoy: number = 0;
+  totalPlataConMozos: number = 0;
+  totalMesasLibresDuena: number = 30;
+  totalMesasOcupadasDuena: number = 0;
+  listaMesasDuena: MesaDuenaMonitoreo[] = [];
+  ultimosCobrosDuena: { numeroMesa: number; total: number; fecha: string }[] = [];
+  
+  private unsubscribeFinanzas?: Unsubscribe;
+  private unsubscribeRestauranteConfig?: Unsubscribe;
+
+  // Estado de Carta
   listaProductosCarta: Producto[] = [];
   cargandoCarta: boolean = false;
   editandoProductoId: string | null = null;
@@ -89,17 +117,214 @@ export class DueniaPanel implements OnInit, OnDestroy {
       }
     }
 
+    this.cargarConfiguracionLocal();
     this.cargarTrabajadores();
     this.cargarProductosLocal();
+    this.cargarHistorialCierres();
   }
 
   ngOnDestroy(): void {
-    if (this.unsubscribeMenu) {
-      this.unsubscribeMenu();
+    if (this.unsubscribeMenu) this.unsubscribeMenu();
+    if (this.unsubscribeFinanzas) this.unsubscribeFinanzas();
+    if (this.unsubscribeRestauranteConfig) this.unsubscribeRestauranteConfig();
+  }
+
+  cargarConfiguracionLocal(): void {
+    runInInjectionContext(this.injector, () => {
+      const restRef = collection(this.firestore, 'restaurantes');
+      const qRest = query(restRef, where('restaurantId', '==', this.restaurantIdActivo));
+
+      this.unsubscribeRestauranteConfig = onSnapshot(qRest, (snapshot) => {
+        if (!snapshot.empty) {
+          const data = snapshot.docs[0].data();
+          if (data['totalMesas']) {
+            this.totalMesasConfiguradas = Number(data['totalMesas']);
+            this.inputCantidadMesas = this.totalMesasConfiguradas;
+          }
+        }
+        this.inicializarMesasDinamicas();
+        this.escucharDatosFinancierosDuena();
+        this.cdr.detectChanges();
+      });
+    });
+  }
+
+  async guardarCantidadMesasLocal(): Promise<void> {
+    if (!this.inputCantidadMesas || this.inputCantidadMesas <= 0) {
+      Swal.fire('Atención', 'Ingresa un número válido de mesas.', 'warning');
+      return;
+    }
+
+    try {
+      const restRef = collection(this.firestore, 'restaurantes');
+      const q = query(restRef, where('restaurantId', '==', this.restaurantIdActivo));
+      const snap = await getDocs(q);
+
+      if (!snap.empty) {
+        const docId = snap.docs[0].id;
+        await updateDoc(doc(this.firestore, `restaurantes/${docId}`), {
+          totalMesas: Number(this.inputCantidadMesas)
+        });
+      }
+
+      this.totalMesasConfiguradas = Number(this.inputCantidadMesas);
+      this.inicializarMesasDinamicas();
+      this.escucharDatosFinancierosDuena();
+
+      Swal.fire({
+        icon: 'success',
+        title: '¡Capacidad Actualizada!',
+        text: `El restaurante ahora cuenta con ${this.totalMesasConfiguradas} mesas configuradas.`,
+        confirmButtonColor: '#10b981'
+      });
+
+    } catch (err) {
+      console.error('Error guardando cantidad de mesas:', err);
+      Swal.fire('Error', 'No se pudo actualizar la cantidad de mesas.', 'error');
     }
   }
 
-  // 💡 Obtener texto dinámico inteligente (Plato o Bebida)
+  inicializarMesasDinamicas(): void {
+    const lista: MesaDuenaMonitoreo[] = [];
+    for (let i = 1; i <= this.totalMesasConfiguradas; i++) {
+      lista.push({ numero: i, estado: 'libre' });
+    }
+    this.listaMesasDuena = lista;
+    this.totalMesasLibresDuena = this.totalMesasConfiguradas;
+    this.totalMesasOcupadasDuena = 0;
+  }
+
+  escucharDatosFinancierosDuena(): void {
+    runInInjectionContext(this.injector, () => {
+      try {
+        const pedidosRef = collection(this.firestore, 'pedidos');
+        const q = query(pedidosRef, where('restaurantId', '==', this.restaurantIdActivo));
+
+        if (this.unsubscribeFinanzas) {
+          this.unsubscribeFinanzas();
+        }
+
+        this.unsubscribeFinanzas = onSnapshot(q, (snapshot) => {
+          let ventasCajaTurno = 0;
+          let plataMozos = 0;
+          const mapaMesasActivas = new Map<number, { cliente: string; total: number; items: any[] }>();
+          const cobrosDelTurno: { numeroMesa: number; total: number; fecha: string }[] = [];
+
+          snapshot.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            const estado = data['estado'] || 'solicitado';
+            const numMesa = Number(data['numeroMesa'] || 1);
+            const total = Number(data['total'] || 0);
+            const cliente = data['cliente'] || data['nombreCliente'] || 'Consumidor';
+            const items = data['items'] || [];
+            
+            const fechaPedidoStr = data['fechaActualizacion'] || data['fechaCreacion'] || '';
+
+            if (estado === 'pagado') {
+              // 🎯 UNIFICACIÓN TOTAL: Todos los pedidos pagados del turno actual suman tanto arriba como abajo
+              ventasCajaTurno += total;
+
+              const fechaObj = new Date(fechaPedidoStr);
+              const horaCorta = !isNaN(fechaObj.getTime()) 
+                ? fechaObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+              cobrosDelTurno.unshift({
+                numeroMesa: numMesa,
+                total: total,
+                fecha: horaCorta
+              });
+            } else {
+              // Pedidos activos con los mozos (mesas ocupadas en salón)
+              plataMozos += total;
+              if (mapaMesasActivas.has(numMesa)) {
+                const mesaExistente = mapaMesasActivas.get(numMesa)!;
+                mesaExistente.total += total;
+                mesaExistente.items.push(...items);
+              } else {
+                mapaMesasActivas.set(numMesa, { cliente, total, items });
+              }
+            }
+          });
+
+          // Asignar los valores sincronizados
+          this.totalVentasCajaHoy = ventasCajaTurno;
+          this.totalPlataConMozos = plataMozos;
+          this.ultimosCobrosDuena = cobrosDelTurno; // La tabla muestra exactamente lo mismo que suma la caja
+
+          this.inicializarMesasDinamicas();
+          this.listaMesasDuena.forEach(m => {
+            if (mapaMesasActivas.has(m.numero)) {
+              const datosActivos = mapaMesasActivas.get(m.numero)!;
+              m.estado = 'ocupada';
+              m.cliente = datosActivos.cliente;
+              m.total = datosActivos.total;
+              m.items = datosActivos.items;
+            }
+          });
+
+          this.totalMesasOcupadasDuena = mapaMesasActivas.size;
+          this.totalMesasLibresDuena = this.totalMesasConfiguradas - this.totalMesasOcupadasDuena;
+
+          this.cdr.detectChanges();
+        });
+      } catch (err) {
+        console.error('Error escuchando finanzas para la dueña:', err);
+      }
+    });
+  }
+
+  // 👁️ Método sin tilde para evitar errores de compilación
+  verDetalleMesaDuena(m: MesaDuenaMonitoreo): void {
+    if (m.estado === 'libre') {
+      Swal.fire({
+        icon: 'info',
+        title: `Mesa N° ${m.numero}`,
+        text: 'La mesa se encuentra libre y disponible.',
+        confirmButtonColor: '#3b82f6',
+        background: '#0f172a',
+        color: '#fff'
+      });
+      return;
+    }
+
+    let htmlItems = '<div style="text-align: left; background: #1e293b; padding: 10px; border-radius: 6px; font-size: 0.8rem; color: #fff; max-height: 220px; overflow-y: auto; margin-bottom: 8px;">';
+    if (m.items && m.items.length > 0) {
+      m.items.forEach(i => {
+        const subtotal = (i.precioSeleccionado || 0) * (i.cantidad || 1);
+        htmlItems += `
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px; border-bottom: 1px dashed #334155; padding-bottom: 4px;">
+            <div><strong style="color: #38bdf8;">${i.cantidad}x</strong> ${i.nombre}</div>
+            <div style="color: #34d399; font-weight: bold;">S/ ${subtotal.toFixed(2)}</div>
+          </div>
+        `;
+      });
+    } else {
+      htmlItems += '<div style="text-align: center; color: #94a3b8;">Sin ítems registrados.</div>';
+    }
+    htmlItems += '</div>';
+
+    Swal.fire({
+      title: `🔴 Mesa N° ${m.numero} Ocupada`,
+      html: `
+        <div style="text-align: left; font-size: 0.85rem; color: #cbd5e1;">
+          <p style="margin: 0 0 8px 0;"><strong>Cliente / Responsable:</strong> <span style="color: #38bdf8;">${m.cliente || 'Consumidor'}</span></p>
+          <p style="margin: 0 0 6px 0; font-size: 0.78rem; color: #94a3b8;">Consumo actual:</p>
+          ${htmlItems}
+          <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; padding: 8px; border-radius: 6px; font-weight:bold; color:#38bdf8; font-size: 0.95rem;">
+            <span>TOTAL CONSUMO:</span>
+            <span>S/ ${(m.total || 0).toFixed(2)}</span>
+          </div>
+        </div>
+      `,
+      confirmButtonText: 'Entendido 👍',
+      confirmButtonColor: '#3b82f6',
+      background: '#0f172a',
+      color: '#fff',
+      width: '400px'
+    });
+  }
+
   obtenerTextoTipo(categoria: string): { singular: string, articulo: string, articuloMayusc: string } {
     const esBebida = categoria === 'bebidas';
     return {
@@ -109,7 +334,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     };
   }
 
-  // 📸 Capturar imagen local para el logo de la dueña
   seleccionarLogoDuena(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -123,7 +347,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     }
   }
 
-  // ☁️ Actualizar el logo del restaurante en Cloudinary y Firestore
   async guardarNuevoLogoDuena(): Promise<void> {
     if (!this.archivoLogoDuena) {
       Swal.fire('Aviso', 'Selecciona una imagen primero.', 'warning');
@@ -178,7 +401,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     });
   }
 
-  // 📸 Capturar imagen local para previsualización de platos
   seleccionarImagen(event: any): void {
     const file = event.target.files[0];
     if (file) {
@@ -192,7 +414,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     }
   }
 
-  // ☁️ Subir la foto real del plato directamente a Cloudinary
   async subirImagenACloudinary(): Promise<string> {
     if (!this.archivoSeleccionado) {
       return this.prodImagenUrl || 'assets/img/plato-default.png';
@@ -204,7 +425,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     );
   }
 
-  // 🍲 Cargar productos en tiempo real con onSnapshot
   cargarProductosLocal(): void {
     runInInjectionContext(this.injector, () => {
       try {
@@ -230,7 +450,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     });
   }
 
-  // Guardar o Actualizar Plato o Bebida con mensajes y estado de carga limpios
   async guardarProductoCarta(): Promise<void> {
     const tipo = this.obtenerTextoTipo(this.prodCategoria);
 
@@ -251,7 +470,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
       }
     }
 
-    // ⏳ Activamos el estado de carga (el botón cambia de texto y se deshabilita)
     this.cargandoCarta = true;
     this.cdr.detectChanges();
 
@@ -280,7 +498,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
           const docRef = doc(this.firestore, `productos/${this.editandoProductoId}`);
           await updateDoc(docRef, datosProducto);
           
-          // 🛑 Apagamos el estado de carga antes de mostrar la alerta
           this.cargandoCarta = false;
           this.cdr.detectChanges();
 
@@ -294,7 +511,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
         } else {
           await addDoc(productosRef, datosProducto);
 
-          // 🛑 Apagamos el estado de carga antes de mostrar la alerta
           this.cargandoCarta = false;
           this.cdr.detectChanges();
 
@@ -354,7 +570,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
-  // Eliminar producto con mensajes verídicos (Plato o Bebida)
   async eliminarProductoCarta(producto: Producto): Promise<void> {
     if (!producto.id) return;
 
@@ -388,7 +603,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     }
   }
 
-  // Filtrar productos por categoría seleccionada en el Navbar de la Dueña
   filtrarProductosPorCategoria(): Producto[] {
     if (this.categoriaSeleccionada === 'todos') {
       return this.listaProductosCarta;
@@ -396,7 +610,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     return this.listaProductosCarta.filter(p => p.categoria === this.categoriaSeleccionada);
   }
 
-  // ================= MÉTODOS DE PERSONAL =================
   toggleVerPasswordNuevo(): void { this.verPasswordNuevo = !this.verPasswordNuevo; }
   limpiarCampoNombre(input: HTMLInputElement): void { this.nuevoNombre = ''; input.focus(); }
   limpiarCampoDni(input: HTMLInputElement): void { this.nuevoDni = ''; input.focus(); }
@@ -485,7 +698,6 @@ export class DueniaPanel implements OnInit, OnDestroy {
     }
   }
 
-  // 🗑️ Cancelar la selección de la imagen para el plato o bebida
   cancelarImagenSeleccionada(): void {
     this.archivoSeleccionado = null;
     this.previewImagenUrl = this.editandoProductoId ? this.prodImagenUrl : null;
@@ -502,4 +714,202 @@ export class DueniaPanel implements OnInit, OnDestroy {
     localStorage.removeItem('sesion_picanteria');
     this.router.navigate(['/login']);
   }
+
+  // 🧮 Calcular la suma total de las cuentas cobradas visibles
+  calcularSumaCobrosVisibles(): number {
+    if (!this.ultimosCobrosDuena || this.ultimosCobrosDuena.length === 0) return 0;
+    return this.ultimosCobrosDuena.reduce((acc, curr) => acc + (curr.total || 0), 0);
+  }
+
+  // 🔒 Método con alerta limpia cuando la caja está en ceros
+  async confirmarCierreDeCaja(): Promise<void> {
+    const totalActual = this.totalVentasCajaHoy;
+
+    // 🛑 VALIDACIÓN AMIGABLE: Si todo está en ceros y no hay cobros, lanzamos el SweetAlert explicativo
+    if (this.totalVentasCajaHoy === 0 && this.totalPlataConMozos === 0 && this.ultimosCobrosDuena.length === 0) {
+      Swal.fire({
+        icon: 'info',
+        title: 'ℹ️ No hay consumos en el día',
+        text: 'Actualmente no se registran ventas ni cobros activos en este turno para realizar un cierre de caja.',
+        confirmButtonColor: '#3b82f6',
+        background: '#1e293b',
+        color: '#ffffff'
+      });
+      return; // Frenamos aquí y no ejecutamos más
+    }
+
+    runInInjectionContext(this.injector, async () => {
+      try {
+        const pedidosRef = collection(this.firestore, 'pedidos');
+        const qActivos = query(pedidosRef, where('restaurantId', '==', this.restaurantIdActivo));
+        const snapshotActivos = await getDocs(qActivos);
+
+        let hayPendientes = false;
+        snapshotActivos.docs.forEach(docSnap => {
+          const data = docSnap.data();
+          const estado = data['estado'];
+          const cajaValidada = data['cajaValidada'];
+
+          if (
+            (estado && estado !== 'pagado' && estado !== 'archivado_caja') || 
+            (cajaValidada === false) || 
+            (estado === 'por_validar')
+          ) {
+            hayPendientes = true;
+          }
+        });
+
+        if (hayPendientes) {
+          Swal.fire({
+            icon: 'error',
+            title: '❌ No se puede cerrar caja',
+            text: 'Todavía hay cuentas pendientes por validar en el módulo de caja, mesas ocupadas o pedidos en curso. El cajero debe validar todo antes de cerrar el turno.',
+            confirmButtonColor: '#ef4444',
+            background: '#1e293b',
+            color: '#fff'
+          });
+          return;
+        }
+
+        const res = await Swal.fire({
+          title: '🔒 ¿Cerrar caja y finalizar turno?',
+          html: `
+            <div style="text-align: left; font-size: 0.82rem; color: #cbd5e1; background: #0f172a; padding: 12px; border-radius: 8px; border: 1px solid #334155;">
+              <p style="margin: 0 0 6px 0;">Todas las cuentas han sido validadas por el cajero y el local está al día. Estás a punto de cerrar caja con un acumulado de:</p>
+              <p style="font-size: 1.2rem; font-weight: 800; color: #34d399; margin: 0 0 10px 0; text-align: center;">S/ ${totalActual.toFixed(2)}</p>
+              <p style="margin: 0; font-size: 0.72rem; color: #94a3b8;">⚠️ Al confirmar, se guardará el respaldo histórico, se limpiarán los pedidos pagados y todo el sistema quedará en ceros para el siguiente turno.</p>
+            </div>
+          `,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Sí, cerrar caja y limpiar',
+          cancelButtonText: 'Cancelar',
+          confirmButtonColor: '#10b981',
+          cancelButtonColor: '#ef4444',
+          background: '#1e293b',
+          color: '#fff'
+        });
+
+        if (res.isConfirmed) {
+          Swal.fire({
+            title: 'Procesando cierre...',
+            text: 'Guardando respaldo y limpiando pedidos de la base de datos.',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); },
+            background: '#1e293b',
+            color: '#fff'
+          });
+
+          const historialRef = collection(this.firestore, 'cierres_caja');
+          await addDoc(historialRef, {
+            restaurantId: this.restaurantIdActivo,
+            fechaCierre: new Date().toISOString(),
+            responsable: this.nombreDueniaActiva,
+            totalRecaudado: totalActual,
+            cantidadTickets: this.ultimosCobrosDuena.length
+          });
+
+          const qPagados = query(pedidosRef, where('restaurantId', '==', this.restaurantIdActivo), where('estado', '==', 'pagado'));
+          const snapshotPagados = await getDocs(qPagados);
+
+          const promesasEliminacion = snapshotPagados.docs.map(docSnap => {
+            const pedidoDocRef = doc(this.firestore, `pedidos/${docSnap.id}`);
+            return deleteDoc(pedidoDocRef);
+          });
+
+          await Promise.all(promesasEliminacion);
+
+          Swal.fire({
+            icon: 'success',
+            title: '¡Caja Cerrada y Limpia!',
+            text: 'El turno se cerró con éxito, el respaldo se guardó en historiales y la tabla de pedidos quedó en cero.',
+            confirmButtonColor: '#10b981',
+            background: '#1e293b',
+            color: '#fff'
+          });
+        }
+
+      } catch (err) {
+        console.error('Error al cerrar caja:', err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'No se pudo completar el cierre de caja. Inténtalo de nuevo.',
+          confirmButtonColor: '#ef4444',
+          background: '#1e293b',
+          color: '#fff'
+        });
+      }
+    });
+  }
+
+  filtrarMesasParaImprimir() {
+    if (!this.mesaSeleccionadaImpresion || this.mesaSeleccionadaImpresion === 'todos' || this.mesaSeleccionadaImpresion === '') {
+      return this.listaMesasDuena;
+    }
+    return this.listaMesasDuena.filter(m => m.numero === Number(this.mesaSeleccionadaImpresion));
+  }
+
+  imprimirQrsMesas(): void {
+    // Cambiar temporalmente el título de la página para que el PDF se guarde con un nombre comercial limpio
+    const tituloOriginal = document.title;
+    document.title = `QR_Mesas_${this.nombreLocalActivo.replace(/\s+/g, '_')}`;
+
+    window.print(); // Abre el diálogo nativo de impresión / guardar como PDF
+
+    // Restaurar el título original de la aplicación tras un breve instante
+    setTimeout(() => {
+      document.title = tituloOriginal;
+    }, 1000);
+  }
+
+  toggleMenuQr(event: Event): void {
+    event.stopPropagation();
+    this.menuQrAbierto = !this.menuQrAbierto;
+  }
+
+  seleccionarOpcionQr(valor: string | number): void {
+    this.mesaSeleccionadaImpresion = valor;
+    this.menuQrAbierto = false;
+  }
+
+  obtenerTextoSeleccionadoQr(): string {
+    if (this.mesaSeleccionadaImpresion === 'todos' || !this.mesaSeleccionadaImpresion) {
+      return '📋 Todas las Mesas';
+    }
+    return `Mesa N° ${this.mesaSeleccionadaImpresion}`;
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.menuQrAbierto) {
+      this.menuQrAbierto = false;
+      this.cdr.detectChanges();
+    }
+  }
+
+  async cargarHistorialCierres(): Promise<void> {
+  runInInjectionContext(this.injector, async () => {
+    try {
+      const cierresRef = collection(this.firestore, 'cierres_caja');
+      const q = query(cierresRef, where('restaurantId', '==', this.restaurantIdActivo));
+      const snapshot = await getDocs(q);
+
+      this.listaHistorialCierres = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      this.listaHistorialCierres.sort((a, b) => new Date(b.fechaCierre).getTime() - new Date(a.fechaCierre).getTime());
+      this.cdr.detectChanges();
+    } catch (err) {
+      console.error('Error cargando historial de cierres:', err);
+    }
+  });
+}
+
+formatFechaCierre(isoStr: string): string {
+  const d = new Date(isoStr);
+  return !isNaN(d.getTime()) ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : isoStr;
+}
 }

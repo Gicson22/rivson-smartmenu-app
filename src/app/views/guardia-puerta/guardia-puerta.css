@@ -6,6 +6,7 @@
   color: white;
   min-height: 100vh;
   padding-bottom: 30px;
+  box-sizing: border-box;
 }
 
 .header-guardia {
@@ -17,13 +18,7 @@
   border-bottom: 2px solid #334155;
   position: sticky;
   top: 0;
-  z-index: 10;
-}
-
-.info-turno {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+  z-index: 100;
 }
 
 .header-guardia h1 {
@@ -31,12 +26,6 @@
   margin: 0;
   font-weight: 800;
   color: #f8fafc;
-}
-
-.badge-guardia-info {
-  font-size: 0.68rem;
-  color: #38bdf8;
-  font-weight: 600;
 }
 
 .btn-salir-turno {
@@ -67,20 +56,6 @@
   gap: 8px;
 }
 
-.stats-rapidas {
-  display: flex;
-  gap: 8px;
-}
-
-.pill {
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: bold;
-}
-.pill.libre { background: #064e3b; color: #34d399; }
-.pill.ocupada { background: #7f1d1d; color: #fca5a5; }
-
 .filtros-busqueda {
   display: flex;
   flex-direction: column;
@@ -95,6 +70,8 @@
   border-radius: 6px;
   font-size: 0.8rem;
   outline: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .botones-filtro {
@@ -114,7 +91,7 @@
   cursor: pointer;
 }
 
-/* Grilla de 100 mesas con altura fija uniforme */
+/* Grilla adaptable de mesas */
 .grid-100-mesas {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(105px, 1fr));
@@ -128,7 +105,7 @@
   border: 1px solid #334155;
   display: flex;
   flex-direction: column;
-  height: 95px; /* Altura exacta para que todas sean iguales */
+  height: 95px;
 }
 
 .card-mesa-grid.libre { border-color: #059669; }
@@ -200,7 +177,7 @@
 
 /* Modal Detalle (Ojito) */
 .modal-overlay {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
@@ -209,7 +186,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  z-index: 1000;
   padding: 12px;
   box-sizing: border-box;
 }
@@ -217,7 +194,7 @@
 .modal-card {
   background: #1e293b;
   width: 90%;
-  max-width: 340px; /* Ancho controlado para que no se desborde */
+  max-width: 340px;
   border-radius: 12px;
   border: 1px solid #475569;
   display: flex;

@@ -5,55 +5,65 @@
   background: #0f172a;
   color: white;
   min-height: 100vh;
-  padding: 12px;
+  padding: 8px 12px;
   box-sizing: border-box;
 }
 
+/* 📌 Wrapper Sticky Superior (Solo para el header principal y las pestañas) */
+.header-sticky-wrapper {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: #0f172a;
+  padding-bottom: 6px;
+}
+
+/* 🏢 Header Estilizado y Fino */
 .saas-header {
   display: flex;
   flex-direction: column;
   background: #1e293b;
   border: 1px solid #334155;
-  padding: 10px 14px;
-  border-radius: 12px;
-  margin-bottom: 8px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  gap: 4px;
 }
 
 .header-fila-superior {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   border-bottom: 1px solid #334155;
-  padding-bottom: 8px;
+  padding-bottom: 4px;
 }
 
 .logo-local {
-  width: 50px;   
-  height: 50px; 
+  width: 36px !important;
+  height: 36px !important; 
   object-fit: contain; 
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #38bdf8; 
   background: #0b0f19;  
   flex-shrink: 0;
 }
 
 .logo-placeholder {
-  width: 50px;
-  height: 50px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 1px solid #475569;
   background: #0f172a;
-  font-size: 1.3rem;
+  font-size: 1rem;
   flex-shrink: 0;
 }
 
 .titulo-local {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   margin: 0;
   color: #38bdf8;
   font-weight: 700;
@@ -64,11 +74,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .subtitulo-admin {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   color: #94a3b8;
   margin: 0;
 }
@@ -82,14 +92,14 @@
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.3);
-  padding: 5px 12px;
-  border-radius: 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   transition: all 0.2s ease;
   flex-shrink: 0;
 }
@@ -100,55 +110,84 @@
   border-color: #ef4444;
 }
 
-/* 🔀 NAVBAR DE PESTAÑAS */
+/* ================= NAVBAR DE PESTAÑAS FINO Y COMPACTO ================= */
 .gerencia-navbar-tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 10px;
   background: #1e293b;
-  padding: 4px;
-  border-radius: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
   border: 1px solid #334155;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #1e293b;
 }
 
 .gerencia-navbar-tabs button {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #94a3b8;
-  padding: 8px 6px;
-  border-radius: 8px;
+  flex: 0 0 auto;
+  padding: 6px 12px;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: bold;
+  background: #0f172a;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.25s ease;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
+  transition: all 0.2s ease;
 }
 
 .gerencia-navbar-tabs button:hover {
   color: #f8fafc;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .gerencia-navbar-tabs button.active {
+  background: #3b82f6;
+  color: #ffffff;
+  border-color: #60a5fa;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+}
+
+.gerencia-navbar-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.gerencia-navbar-tabs::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 4px;
+}
+
+.gerencia-navbar-tabs::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+.chips-categorias-container button {
+  background: #0f172a;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.chips-categorias-container button.active {
   background: #38bdf8;
   color: #0f172a;
+  border-color: #38bdf8;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.3);
 }
 
 .contenido-gerencia {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-top: 8px;
 }
 
 .card-seccion {
@@ -163,6 +202,51 @@
   font-size: 0.9rem;
   margin-top: 0;
   color: #38bdf8;
+}
+
+/* 📜 Contenedor Scroller para Cobros Recientes */
+.tabla-scroller-cobros {
+  max-height: 250px;
+  overflow-y: auto;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 #0f172a;
+}
+
+.tabla-scroller-cobros::-webkit-scrollbar {
+  width: 5px;
+}
+
+.tabla-scroller-cobros::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.tabla-scroller-cobros::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+/* Fila resumen con la suma total abajo */
+.footer-suma-cobros {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(52, 211, 153, 0.1);
+  border: 1px solid #34d399;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: #cbd5e1;
+}
+
+.txt-suma-total {
+  color: #34d399;
+  font-size: 0.95rem;
+  font-weight: 800;
 }
 
 .form-grid {
@@ -195,7 +279,6 @@
   border-color: #3b82f6;
 }
 
-/* Contenedores de botones de limpiar y ojos */
 .input-clear-wrapper {
   position: relative;
   display: flex;
@@ -327,6 +410,9 @@ th {
   background: #0f172a;
   color: #94a3b8;
   font-size: 0.72rem;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .fila-inactiva {
@@ -387,24 +473,6 @@ code {
   padding: 16px;
 }
 
-.img-tabla-prod {
-  width: 42px !important;
-  height: 42px !important;
-  max-width: 42px !important;
-  max-height: 42px !important;
-  object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid #475569;
-  display: block;
-}
-
-.btn-custom-file:hover {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: #f59e0b;
-  color: #f59e0b;
-}
-
-/* Contenedor flexible para el logo */
 .logo-config-flex {
   display: flex;
   align-items: flex-start;
@@ -445,7 +513,6 @@ code {
   background: #0b0f19;
 }
 
-/* Botón personalizado sin desborde */
 .btn-custom-file {
   display: block;
   background: #0f172a;
@@ -489,48 +556,6 @@ code {
   box-sizing: border-box;
 }
 
-/* 📌 Navbar deslizable de categorías (Sticky Header) */
-.chips-categorias-container {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 8px 0;
-  margin-bottom: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: #38bdf8 #1e293b;
-  position: sticky;
-  top: 0;
-  background: #1e293b;
-  z-index: 10;
-  border-bottom: 1px solid #334155;
-}
-
-.chips-categorias-container button {
-  background: #0f172a;
-  color: #94a3b8;
-  border: 1px solid #334155;
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s ease;
-}
-
-.chips-categorias-container button:hover {
-  background: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
-}
-
-.chips-categorias-container button.active {
-  background: #38bdf8;
-  color: #0f172a;
-  border-color: #38bdf8;
-  font-weight: 700;
-}
-
-/* 👟 Grilla de Cards en 2 Columnas Estilo E-commerce */
 .productos-grid-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr) !important;
@@ -544,12 +569,6 @@ code {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.producto-card-item:hover {
-  transform: translateY(-2px);
-  border-color: #38bdf8;
 }
 
 .card-img-wrapper {
@@ -646,13 +665,8 @@ code {
   align-items: center;
   justify-content: center;
   font-size: 0.65rem !important;
-  transition: all 0.2s;
 }
 
-.btn-card-accion.editar:hover { background: #38bdf8; color: #0f172a; }
-.btn-card-accion.eliminar:hover { background: #ef4444; color: white; }
-
-/* 🏷️ Titulación unificada de secciones */
 .titulo-seccion-carta,
 .titulo-seccion-carta-actual {
   font-size: 1.05rem !important;
@@ -665,7 +679,6 @@ code {
   gap: 8px;
 }
 
-/* Checkbox compacto */
 .campo-checkbox-row {
   grid-column: 1 / -1;
   display: flex;
@@ -685,7 +698,6 @@ code {
   font-size: 0.75rem;
   cursor: pointer;
   margin: 0;
-  line-height: 1.3;
 }
 
 .chk-custom {
@@ -693,78 +705,188 @@ code {
   height: 18px;
   accent-color: #38bdf8;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-/* Subida de foto y preview con botón flotante X */
-.foto-upload-container {
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 12px;
-  align-items: flex-end;
-  width: 100%;
-}
-
-.box-preview-inline {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #0f172a;
-  padding: 6px 10px;
-  border-radius: 8px;
-  border: 1px solid #38bdf8;
-  height: 52px;
-  box-sizing: border-box;
-}
-
-.img-preview-mini {
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
-  object-fit: cover;
-  border: 1px solid #38bdf8;
-  flex-shrink: 0;
-}
-
-.btn-remove-img {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: #ef4444;
+/* 🔒 Botón Maestro de Cierre de Caja */
+.btn-cerrar-caja-maestro {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
   color: white;
-  border: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 0.65rem;
-  font-weight: bold;
+  border: 1px solid #60a5fa;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.8rem;
   cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+.btn-cerrar-caja-maestro:hover {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.5);
+  transform: translateY(-1px);
+}
+
+/* 📌 Navbar de Categorías (Sticky independiente ajustado un poquito más abajo) */
+.chips-categorias-container {
   display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #38bdf8 #1e293b;
+  position: sticky;
+  top: 132px;
+  background: #1e293b;
+  z-index: 90;                    
+  border: 1px solid #334155;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  margin-bottom: 12px;
+}
+
+@media print {
+  /* Ocultar elementos de navegación y menús administrativos */
+  .gerencia-container > *:not(.contenido-gerencia),
+  .header-sticky-wrapper,
+  .card-seccion:first-child,
+  .btn-guardar,
+  select,
+  .dropdown-personalizado-wrapper {
+    display: none !important;
+  }
+
+  body, .gerencia-container, .contenido-gerencia {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    
+    /* 🎯 ESTO ES LO CLAVE: Fuerza al navegador a imprimir los fondos y colores exactos */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Grilla de impresión limpia en hoja A4 */
+  .qr-grid-impresion {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important; /* 2 columnas exactas para tarjetas comerciales */
+    gap: 15px !important;
+    width: 100% !important;
+    padding: 5px !important;
+  }
+
+  .card-qr-mesa {
+    border: 2px solid #94a3b8 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    padding: 14px !important;
+    
+    /* Forzar impresión de colores en las tarjetas */
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* Permitir scroll fluido en los selects largos del panel */
+select.input-control option {
+  background: #0f172a;
+  color: #fff;
+  padding: 8px;
+}
+
+/* 🎯 Limitar la altura de la lista desplegable del select de QR para que tenga scroll interno */
+.select-mesas-qr {
+  max-height: 35px;
+}
+
+/* Para navegadores basados en WebKit (Chrome, Edge, etc.), limitamos el tamaño del popup de opciones */
+select.select-mesas-qr option {
+  background: #0f172a;
+  color: #fff;
+  padding: 8px;
+}
+
+/* 🎯 Estilos para el Dropdown Personalizado de QR con Scroll Controlado */
+.dropdown-personalizado-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 170px;
+}
+
+.btn-dropdown-trigger {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
-  transition: transform 0.2s ease, background 0.2s ease;
+  background: #0f172a;
+  border: 1px solid #475569;
+  color: white;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
 }
 
-.btn-remove-img:hover {
-  background: #dc2626;
-  transform: scale(1.1);
+.dropdown-menu-flotante {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: #0f172a;
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  margin-top: 4px;
+  z-index: 999;
+  
+  /* 🛑 AQUÍ ESTÁ EL TRUCO: Limitamos la altura a unos 6 ítems visibles aprox. y agregamos scroll */
+  max-height: 180px; 
+  overflow-y: auto;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  scrollbar-width: thin;
+  scrollbar-color: #38bdf8 #0f172a;
 }
 
-/* Estandarización de Labels */
-.campo label,
-.box-subir-foto > label {
-  font-size: 0.73rem !important;
-  color: #cbd5e1 !important;
-  font-weight: 600 !important;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-  margin-bottom: 4px !important;
-  display: block;
+.dropdown-menu-flotante::-webkit-scrollbar {
+  width: 5px;
 }
 
-.box-subir-foto {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+.dropdown-menu-flotante::-webkit-scrollbar-thumb {
+  background: #38bdf8;
+  border-radius: 4px;
+}
+
+.dropdown-item-opcion {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  cursor: pointer;
+  border-bottom: 1px solid #1e293b;
+  transition: background 0.15s ease;
+}
+
+.dropdown-item-opcion:hover {
+  background: #1e293b;
+  color: #38bdf8;
+}
+
+/* 🎯 Scroll horizontal estilizado para la tabla de historial de cierres */
+.tabla-responsive-historial::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tabla-responsive-historial::-webkit-scrollbar-track {
+  background: #0f172a;
+  border-radius: 4px;
+}
+
+.tabla-responsive-historial::-webkit-scrollbar-thumb {
+  background: #38bdf8;
+  border-radius: 4px;
 }
