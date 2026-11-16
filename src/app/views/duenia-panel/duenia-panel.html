@@ -648,11 +648,22 @@
           </div>
 
           <!-- 3. Imagen del QR centrada y de excelente resolución -->
-          <div style="background: white; padding: 4px; border-radius: 8px;">
+          <!-- <div style="background: white; padding: 4px; border-radius: 8px;">
             <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://rivson-smartmenu-app.vercel.app/cliente?local=' + restaurantIdActivo + '&mesa=' + m.numero" 
             style="width: 155px; height: 155px; display: block; margin: 0 auto;" 
             alt="QR Mesa" />
-          </div>
+          </div> -->
+
+          <div style="background: white; padding: 10px; border-radius: 8px;">
+    <!-- 🔍 TEXTO DE PRUEBA: Esto imprimirá la URL exacta en tu pantalla -->
+    <p style="color: black; font-size: 11px; word-break: break-all; background: #eee; padding: 5px;">
+      URL Generada: https://rivson-smartmenu-app.vercel.app/cliente?local={{ restaurantIdActivo }}&mesa={{ m.numero }}
+    </p>
+
+    <img [src]="'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=https://rivson-smartmenu-app.vercel.app/cliente?local=' + restaurantIdActivo + '&mesa=' + m.numero" 
+    style="width: 155px; height: 155px; display: block; margin: 0 auto;" 
+    alt="QR Mesa" />
+</div>
 
           <!-- 4. Pie de página en mayúsculas -->
           <span style="font-size: 0.6rem; color: #334155; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">Escanea para ver la carta y pedir</span>

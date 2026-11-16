@@ -142,6 +142,7 @@ export class DueniaPanel implements OnInit, OnDestroy {
             this.inputCantidadMesas = this.totalMesasConfiguradas;
           }
         }
+        console.log("⚙️ Configuración del local cargada - Total de mesas:", this.totalMesasConfiguradas);
         this.inicializarMesasDinamicas();
         this.escucharDatosFinancierosDuena();
         this.cdr.detectChanges();
@@ -192,6 +193,7 @@ export class DueniaPanel implements OnInit, OnDestroy {
     this.listaMesasDuena = lista;
     this.totalMesasLibresDuena = this.totalMesasConfiguradas;
     this.totalMesasOcupadasDuena = 0;
+    console.log("📌 Mesas dinámicas inicializadas correctamente:", this.listaMesasDuena);
   }
 
   escucharDatosFinancierosDuena(): void {

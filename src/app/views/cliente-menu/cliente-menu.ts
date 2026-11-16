@@ -344,10 +344,12 @@ export class ClienteMenu implements OnInit, OnDestroy {
   }
 
   inicializarSesionUnica(): void {
+    // 💡 Limpiamos cualquier token o bloqueo anterior que haya quedado colgado en el navegador de otra mesa
+    const keysAEliminar = Object.keys(localStorage).filter(k => k.startsWith('rivson_token_') || k.startsWith('rivson_bloqueado_'));
+    keysAEliminar.forEach(k => localStorage.removeItem(k));
+
     const keyToken = `rivson_token_${this.restaurantId}_mesa_${this.numeroMesa}`;
     const keyBloqueo = `rivson_bloqueado_${this.restaurantId}_mesa_${this.numeroMesa}`;
-
-    localStorage.removeItem(keyBloqueo);
 
     let tokenGuardado = localStorage.getItem(keyToken);
     if (!tokenGuardado) {
@@ -355,7 +357,7 @@ export class ClienteMenu implements OnInit, OnDestroy {
       localStorage.setItem(keyToken, tokenGuardado);
     }
     this.sessionToken = tokenGuardado;
-    this.sesionFinalizadaBloqueada = false;
+    this.sesionFinalizadaBloqueada = !!localStorage.getItem(keyBloqueo);
   }
 
   cargarLogoRestaurante(): void {
