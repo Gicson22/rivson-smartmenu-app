@@ -77,9 +77,10 @@ export class ClienteMenu implements OnInit, OnDestroy {
   private initialPinchDistance: number = 0;
   private lastZoomScale: number = 1;
 
-  // Variables para control de gestos Swipe táctil horizontal en categorías
+  // Variables para control de gestos Swipe táctil horizontal con animación
   private touchStartX: number = 0;
   private touchEndX: number = 0;
+  claseAnimacionSwipe: string = '';
 
   @ViewChild('gridCards') gridCardsRef!: ElementRef<HTMLDivElement>;
 
@@ -186,7 +187,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
     this.actualizarBloqueoScroll();
   }
 
-  // Gestos táctiles con dos dedos (Pinch-to-Zoom)
   onTouchStartZoom(event: TouchEvent): void {
     if (event.touches.length === 2) {
       event.preventDefault();
@@ -216,8 +216,9 @@ export class ClienteMenu implements OnInit, OnDestroy {
     return Math.hypot(dx, dy);
   }
 
-  // ================= MÉTODOS DE SWIPE Y NAVEGACIÓN TÁCTIL DE CATEGORÍAS =================
-  seleccionarCategoria(cat: string): void {
+  // ================= SWIPE Y ANIMACIÓN LATERAL GLOBAL =================
+  seleccionarCategoriaConAnimacion(cat: string, indexNuevo: number): void {
+    if (this.categoriaSeleccionada === cat) return;
     this.categoriaSeleccionada = cat;
     this.sincronizarScrollNavbarCategorias();
   }
@@ -231,24 +232,34 @@ export class ClienteMenu implements OnInit, OnDestroy {
   onCardTouchEnd(event: TouchEvent): void {
     if (event.changedTouches && event.changedTouches.length > 0) {
       this.touchEndX = event.changedTouches[0].screenX;
-      this.manejarSwipeCategorias();
+      this.manejarSwipeCategoriasConAnimacion();
     }
   }
 
-  private manejarSwipeCategorias(): void {
-    const umbralMinimo = 60; // Píxeles mínimos de desplazamiento para considerar el gesto swipe
+  private manejarSwipeCategoriasConAnimacion(): void {
+    const umbralMinimo = 50; 
     const categorias = ['todos', 'ceviches', 'sudados', 'secos', 'jaleas', 'bebidas'];
     const indexActual = categorias.indexOf(this.categoriaSeleccionada);
 
     if (this.touchEndX + umbralMinimo < this.touchStartX) {
       // 👈 Swipe a la izquierda -> Siguiente categoría
       if (indexActual < categorias.length - 1) {
-        this.seleccionarCategoria(categorias[indexActual + 1]);
+        this.claseAnimacionSwipe = 'animar-slide-izquierda';
+        setTimeout(() => {
+          this.categoriaSeleccionada = categorias[indexActual + 1];
+          this.sincronizarScrollNavbarCategorias();
+          this.claseAnimacionSwipe = '';
+        }, 200);
       }
     } else if (this.touchEndX > this.touchStartX + umbralMinimo) {
       // 👉 Swipe a la derecha -> Categoría anterior
       if (indexActual > 0) {
-        this.seleccionarCategoria(categorias[indexActual - 1]);
+        this.claseAnimacionSwipe = 'animar-slide-derecha';
+        setTimeout(() => {
+          this.categoriaSeleccionada = categorias[indexActual - 1];
+          this.sincronizarScrollNavbarCategorias();
+          this.claseAnimacionSwipe = '';
+        }, 200);
       }
     }
   }

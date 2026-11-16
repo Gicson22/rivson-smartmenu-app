@@ -1,4 +1,6 @@
-<div class="menu-container">
+<div class="menu-container"
+     (touchstart)="onCardTouchStart($event)" 
+     (touchend)="onCardTouchEnd($event)">
   <header class="header">
     <!-- Fila 1: Logo, Nombre y Mesa -->
     <div class="logo-info">
@@ -25,18 +27,16 @@
 
   <!-- Filtro por Categorías (Navbar Deslizable) -->
   <nav class="categorias">
-    <button [class.active]="categoriaSeleccionada === 'todos'" (click)="seleccionarCategoria('todos')">✨ Todos</button>
-    <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="seleccionarCategoria('ceviches')">🐟 Ceviches</button>
-    <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="seleccionarCategoria('sudados')">🍲 Sudados</button>
-    <button [class.active]="categoriaSeleccionada === 'secos'" (click)="seleccionarCategoria('secos')">🥩 Secos</button>
-    <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="seleccionarCategoria('jaleas')">🍤 Jaleas</button>
-    <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="seleccionarCategoria('bebidas')">🥤 Bebidas</button>
+    <button [class.active]="categoriaSeleccionada === 'todos'" (click)="seleccionarCategoriaConAnimacion('todos', 0)">✨ Todos</button>
+    <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="seleccionarCategoriaConAnimacion('ceviches', 1)">🐟 Ceviches</button>
+    <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="seleccionarCategoriaConAnimacion('sudados', 2)">🍲 Sudados</button>
+    <button [class.active]="categoriaSeleccionada === 'secos'" (click)="seleccionarCategoriaConAnimacion('secos', 3)">🥩 Secos</button>
+    <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="seleccionarCategoriaConAnimacion('jaleas', 4)">🍤 Jaleas</button>
+    <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="seleccionarCategoriaConAnimacion('bebidas', 5)">🥤 Bebidas</button>
   </nav>
 
-  <!-- Lista de Productos en Grilla de 2 Columnas con soporte de Swipe Táctil -->
-  <main class="lista-productos-grid" 
-        (touchstart)="onCardTouchStart($event)" 
-        (touchend)="onCardTouchEnd($event)">
+  <!-- Lista de Productos en Grilla con Animación de Slide -->
+  <main class="lista-productos-grid" [ngClass]="claseAnimacionSwipe">
     <div *ngFor="let producto of productosFiltrados" class="producto-card-item" (click)="abrirModalOpciones(producto)">
       <div class="card-img-wrapper">
         <img [src]="producto.imagenUrl || 'assets/img/plato-default.png'"
@@ -62,8 +62,9 @@
     </div>
 
     <div *ngIf="productosFiltrados.length === 0" class="sin-datos"
-      style="grid-column: 1 / -1; text-align: center; padding: 30px; color: #6b7280;">
-      No hay platos disponibles en esta categoría.
+      style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #6b7280; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <span style="font-size: 1.05rem; margin-bottom: 6px;">🍽️ No hay platos en esta categoría</span>
+      <span style="font-size: 0.78rem; color: #475569;">Desliza hacia los costados en cualquier parte para cambiar de sección 👇</span>
     </div>
   </main>
 
@@ -276,9 +277,9 @@
     </div>
   </div>
 
-  <!-- ================= MODAL VISOR DE IMAGEN CON ZOOM TÁCTIL Y X FIJA ================= -->
+  <!-- ================= MODAL VISOR DE IMAGEN CON ZOOM TÁCTIL Y X BIEN UBICADA ================= -->
   <div class="modal-overlay zoom-overlay" *ngIf="imagenZoomUrl" (click)="cerrarZoomImagen()">
-    <!-- Botón X fijo en la esquina superior que nunca se mueve con el scroll/zoom -->
+    <!-- Botón X con posición segura y cómoda al alcance de la mano -->
     <button class="btn-cerrar-zoom-fijo" (click)="cerrarZoomImagen()">✕</button>
 
     <div class="zoom-container" 
@@ -290,7 +291,7 @@
         [style.transform]="'scale(' + zoomScale + ')'"
         (error)="$any($event.target).src = 'assets/img/plato-default.png'" 
         alt="Vista ampliada" />
-      <span class="zoom-hint-dedos" *ngIf="zoomScale === 1">🤏 Separa dos dedos para acercar</span>
+      <span class="zoom-hint-dedos" *ngIf="zoomScale === 1">🤏 Separa dos dedos para acercar / Paneo libre</span>
     </div>
   </div>
 </div>

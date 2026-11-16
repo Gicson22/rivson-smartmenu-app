@@ -49,14 +49,12 @@
   padding: 14px 12px;
   padding-top: 145px !important;
   display: grid;
-  /* grid-template-columns: repeat(2, 1fr); */
-  /* gap: 10px; */
   background-color: #0f172a;
   box-sizing: border-box;
   width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr)); /*test */
-  gap: 12px; /*test */
-  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease; /*test */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease;
 }
 
 .header h1 {
@@ -879,7 +877,6 @@
   font-weight: 700;
 }
 
-/* Bloquear el scroll de la página de fondo cuando el modal esté abierto */
 body.modal-abierto {
   overflow: hidden !important;
   position: fixed !important;
@@ -888,7 +885,6 @@ body.modal-abierto {
   right: 0 !important;
 }
 
-/* Evitar selección de texto y menú contextual (diccionario) al tocar botones en móvil */
 .carrito-bar, 
 .resumen-enviado-container, 
 .txt-consumo-mesa, 
@@ -903,58 +899,39 @@ body.modal-abierto {
   -webkit-tap-highlight-color: transparent;
 }
 
-.btn-cerrar-zoom {
-  position: absolute;
-  top: -16px;
-  right: -10px;
-  z-index: 2010;
-  background: #ef4444;
-  color: white;
-  border: 2px solid #0f172a;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  font-weight: bold;
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-}
-
-/* ❌ Botón X fijo para el visor de zoom */
-.btn-cerrar-zoom-fijo {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: rgba(239, 68, 68, 0.9);
-  color: white;
-  border: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  font-size: 1.25rem;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 100000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-}
-
+/* ================= MODAL ZOOM MEJORADO Y SEGURO ================= */
 .zoom-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.96);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* ❌ Botón X posicionado cómodamente dentro de la pantalla, debajo del navegador */
+.btn-cerrar-zoom-fijo {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(239, 68, 68, 0.95);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.7);
 }
 
 .zoom-container {
@@ -966,11 +943,12 @@ body.modal-abierto {
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  padding: 20px;
 }
 
 .zoom-container img {
   max-width: 90%;
-  max-height: 90%;
+  max-height: 82vh;
   object-fit: contain;
   transition: transform 0.1s ease-out;
   transform-origin: center center;
@@ -978,17 +956,22 @@ body.modal-abierto {
 
 .zoom-hint-dedos {
   position: absolute;
-  bottom: 30px;
-  background: rgba(15, 23, 42, 0.8);
+  bottom: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.9);
   color: #38bdf8;
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 20px;
-  font-size: 0.75rem;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  font-size: 0.78rem;
+  border: 1px solid rgba(56, 189, 248, 0.4);
   pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  z-index: 100000;
 }
 
-/* Clases dinámicas para la animación de empuje lateral según el gesto */
+/* Animaciones fluidas de empuje lateral */
 .animar-slide-izquierda {
   animation: slideOutLeft 0.25s forwards;
 }
