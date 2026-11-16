@@ -33,14 +33,13 @@
     <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">🥤 Bebidas</button>
   </nav>
 
-  <!-- Lista de Productos en Grilla de 2 Columnas -->
+  <!-- Lista de Productos en Grilla de 2 Columnas (Tal como estaba originalmente) -->
   <main class="lista-productos-grid">
     <div *ngFor="let producto of productosFiltrados" class="producto-card-item" (click)="abrirModalOpciones(producto)">
-      <div class="card-img-wrapper" (click)="abrirZoomImagen(producto.imagenUrl, $event)">
+      <div class="card-img-wrapper">
         <img [src]="producto.imagenUrl || 'assets/img/plato-default.png'"
           (error)="$any($event.target).src = 'assets/img/plato-default.png'" [alt]="producto.nombre" />
         <span class="badge-cat-tag">{{ producto.categoria | uppercase }}</span>
-        <span class="badge-zoom-hint">🔍</span>
       </div>
 
       <div class="card-body-info">
@@ -150,7 +149,12 @@
           <strong>S/ {{ calcularPrecioActualModal().toFixed(2) }}</strong>
         </div>
         <button class="btn-confirmar-opcion" (click)="agregarAlCarritoConOpciones()">
-          <span class="icono-carrito-btn">🛒</span> Agregar al Carrito
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          Agregar al Carrito
         </button>
       </div>
     </div>
@@ -270,11 +274,19 @@
     </div>
   </div>
 
-  <!-- ================= MODAL VISOR DE IMAGEN EN GRANDE ================= -->
+  <!-- ================= MODAL VISOR DE IMAGEN CON ZOOM TÁCTIL (PINCH-TO-ZOOM) ================= -->
   <div class="modal-overlay zoom-overlay" *ngIf="imagenZoomUrl" (click)="cerrarZoomImagen()">
-    <div class="zoom-container" (click)="$event.stopPropagation()">
+    <div class="zoom-container" 
+      (click)="$event.stopPropagation()"
+      (touchstart)="onTouchStartZoom($event)"
+      (touchmove)="onTouchMoveZoom($event)"
+      (touchend)="onTouchEndZoom($event)">
       <button class="btn-cerrar-zoom" (click)="cerrarZoomImagen()">✕</button>
-      <img [src]="imagenZoomUrl" (error)="$any($event.target).src = 'assets/img/plato-default.png'" alt="Vista ampliada" />
+      <img [src]="imagenZoomUrl" 
+        [style.transform]="'scale(' + zoomScale + ')'"
+        (error)="$any($event.target).src = 'assets/img/plato-default.png'" 
+        alt="Vista ampliada" />
+      <span class="zoom-hint-dedos" *ngIf="zoomScale === 1">🤏 Separa dos dedos para acercar</span>
     </div>
   </div>
 </div>

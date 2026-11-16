@@ -40,6 +40,7 @@ export class ClienteMenu implements OnInit, OnDestroy {
   private animacionTotalId: any = null;
   private heartbeatInterval: any = null;
   private monitorInactividadMasterId: any = null;
+  private scrollPositionGuardado: number = 0;
   
   numeroMesa: number = 1;
   restaurantId: string = 'moscu';
@@ -71,6 +72,11 @@ export class ClienteMenu implements OnInit, OnDestroy {
   observacionItem: string = '';
   imagenZoomUrl: string | null = null;
 
+  // Variables para Pinch-to-Zoom con dos dedos
+  zoomScale: number = 1;
+  private initialPinchDistance: number = 0;
+  private lastZoomScale: number = 1;
+
   @ViewChild('gridCards') gridCardsRef!: ElementRef<HTMLDivElement>;
 
   private unsubPedidos?: Unsubscribe;
@@ -87,14 +93,16 @@ export class ClienteMenu implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
-      const mesaParam = params.get('mesa');
-      const localParam = params.get('local');
+      // Respaldo directo desde window.location.search por si el router pierde parámetros al redirigir
+      const urlParams = new URLSearchParams(window.location.search);
+      const mesaParam = params.get('mesa') || urlParams.get('mesa');
+      const localParam = params.get('local') || urlParams.get('local');
 
       let cambioDetectado = false;
 
       if (mesaParam) {
         const nuevaMesa = Number(mesaParam);
-        if (this.numeroMesa !== nuevaMesa) {
+        if (!isNaN(nuevaMesa) && nuevaMesa > 0 && this.numeroMesa !== nuevaMesa) {
           this.numeroMesa = nuevaMesa;
           cambioDetectado = true;
         }
@@ -137,27 +145,72 @@ export class ClienteMenu implements OnInit, OnDestroy {
     if (this.unsubRestaurante) this.unsubRestaurante();
     if (this.unsubControl) this.unsubControl();
     if (this.unsubCarta) this.unsubCarta();
-    document.body.classList.remove('modal-abierto');
+    this.desbloquearScrollFondo();
   }
 
   private actualizarBloqueoScroll(): void {
     const algunModalAbierto = this.mostrarModalOpciones || this.mostrarModalCarrito || !!this.imagenZoomUrl;
     if (algunModalAbierto) {
-      document.body.classList.add('modal-abierto');
+      if (!document.body.classList.contains('modal-abierto')) {
+        this.scrollPositionGuardado = window.scrollY;
+        document.body.style.top = `-${this.scrollPositionGuardado}px`;
+        document.body.classList.add('modal-abierto');
+      }
     } else {
-      document.body.classList.remove('modal-abierto');
+      this.desbloquearScrollFondo();
     }
   }
 
-  abrirZoomImagen(url: string | undefined, event?: Event): void {
-    if (event) event.stopPropagation();
+  private desbloquearScrollFondo(): void {
+    if (document.body.classList.contains('modal-abierto')) {
+      document.body.classList.remove('modal-abierto');
+      document.body.style.top = '';
+      window.scrollTo(0, this.scrollPositionGuardado);
+    }
+  }
+
+  abrirZoomImagen(url: string | undefined): void {
+    this.zoomScale = 1;
+    this.lastZoomScale = 1;
     this.imagenZoomUrl = url || 'assets/img/plato-default.png';
     this.actualizarBloqueoScroll();
   }
 
   cerrarZoomImagen(): void {
     this.imagenZoomUrl = null;
+    this.zoomScale = 1;
+    this.lastZoomScale = 1;
     this.actualizarBloqueoScroll();
+  }
+
+  // Gestos táctiles con dos dedos (Pinch-to-Zoom)
+  onTouchStartZoom(event: TouchEvent): void {
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      this.initialPinchDistance = this.getDistanciaDosDedos(event.touches);
+    }
+  }
+
+  onTouchMoveZoom(event: TouchEvent): void {
+    if (event.touches.length === 2 && this.initialPinchDistance > 0) {
+      event.preventDefault();
+      const currentDistance = this.getDistanciaDosDedos(event.touches);
+      const scaleFactor = currentDistance / this.initialPinchDistance;
+      this.zoomScale = Math.min(Math.max(this.lastZoomScale * scaleFactor, 1), 4);
+    }
+  }
+
+  onTouchEndZoom(event: TouchEvent): void {
+    if (event.touches.length < 2) {
+      this.lastZoomScale = this.zoomScale;
+      this.initialPinchDistance = 0;
+    }
+  }
+
+  private getDistanciaDosDedos(touches: TouchList): number {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
   }
 
   private limpiarIntervalosMaster(): void {

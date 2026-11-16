@@ -914,4 +914,9 @@ formatFechaCierre(isoStr: string): string {
   const d = new Date(isoStr);
   return !isNaN(d.getTime()) ? d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : isoStr;
 }
+
+obtenerUrlCodificadaMesa(numeroMesa: number): string {
+    const urlDestino = `https://rivson-smartmenu-app.vercel.app/cliente?local=${this.restaurantIdActivo}&mesa=${numeroMesa}`;
+    return encodeURIComponent(urlDestino);
+  }
 }
