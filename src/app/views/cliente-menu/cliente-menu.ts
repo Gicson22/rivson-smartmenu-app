@@ -2,7 +2,7 @@ import { Component, OnInit, ViewChild, ElementRef, inject, ChangeDetectorRef, En
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { Firestore, collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs, setDoc, getDoc } from '@angular/fire/firestore';
+import { Firestore, collection, addDoc, query, where, onSnapshot, doc, updateDoc, getDocs, setDoc, getDoc, Unsubscribe } from '@angular/fire/firestore';
 import Swal from 'sweetalert2';
 import { Producto } from '../../models/pedido';
 
@@ -73,61 +73,52 @@ export class ClienteMenu implements OnInit, OnDestroy {
 
   @ViewChild('gridCards') gridCardsRef!: ElementRef<HTMLDivElement>;
 
-  // ngOnInit(): void {
-  //   this.route.queryParams.subscribe(params => {
-  //     if (params['mesa']) {
-  //       this.numeroMesa = Number(params['mesa']);
-  //     }
-  //     if (params['local']) {
-  //       this.restaurantId = params['local'].trim().toLowerCase();
-  //     }
-      
-  //     this.inicializarDeviceToken();
-  //     this.inicializarSesionUnica();
-  //   });
-
-  //   this.cargarLogoRestaurante();
-  //   this.cargarCartaRealFirestore();
-  //   this.escucharPedidosMesaFirestore();
-  //   this.escucharControlMesaFirestore();
-  // }
-
+  private unsubPedidos?: Unsubscribe;
+  private unsubRestaurante?: Unsubscribe;
+  private unsubControl?: Unsubscribe;
 
   ngOnInit(): void {
-  // Usamos paramMap y queryParamMap para reaccionar al instante ante cualquier cambio de QR
-  this.route.queryParamMap.subscribe(params => {
-    const mesaParam = params.get('mesa');
-    const localParam = params.get('local');
+    this.route.queryParamMap.subscribe(params => {
+      const mesaParam = params.get('mesa');
+      const localParam = params.get('local');
 
-    let necesitaRecargar = false;
+      let cambioDetectado = false;
 
-    if (mesaParam) {
-      const nuevaMesa = Number(mesaParam);
-      if (this.numeroMesa !== nuevaMesa) {
-        this.numeroMesa = nuevaMesa;
-        necesitaRecargar = true;
+      if (mesaParam) {
+        const nuevaMesa = Number(mesaParam);
+        if (this.numeroMesa !== nuevaMesa) {
+          this.numeroMesa = nuevaMesa;
+          cambioDetectado = true;
+        }
       }
-    }
 
-    if (localParam) {
-      const nuevoLocal = localParam.trim().toLowerCase();
-      if (this.restaurantId !== nuevoLocal) {
-        this.restaurantId = nuevoLocal;
-        necesitaRecargar = true;
+      if (localParam) {
+        const nuevoLocal = localParam.trim().toLowerCase();
+        if (this.restaurantId !== nuevoLocal) {
+          this.restaurantId = nuevoLocal;
+          cambioDetectado = true;
+        }
       }
-    }
-    
-    this.inicializarDeviceToken();
-    this.inicializarSesionUnica();
+      
+      this.inicializarDeviceToken();
+      this.inicializarSesionUnica();
 
-    if (necesitaRecargar || !this.productos.length) {
-      this.cargarLogoRestaurante();
-      this.cargarCartaRealFirestore();
-      this.escucharPedidosMesaFirestore();
-      this.escucharControlMesaFirestore();
-    }
-  });
-}
+      // Si cambia de mesa o entra por primera vez, limpiamos escuchas viejas y conectamos a la nueva mesa
+      if (cambioDetectado || !this.cargadoInicial) {
+        this.cargadoInicial = true;
+        
+        // Limpiamos listeners previos de Firestore para evitar cruces de mesas
+        if (this.unsubPedidos) this.unsubPedidos();
+        if (this.unsubRestaurante) this.unsubRestaurante();
+        if (this.unsubControl) this.unsubControl();
+
+        this.cargarLogoRestaurante();
+        this.cargarCartaRealFirestore();
+        this.escucharPedidosMesaFirestore();
+        this.escucharControlMesaFirestore();
+      }
+    });
+  }
 
   ngOnDestroy(): void {
     this.limpiarIntervalosMaster();
