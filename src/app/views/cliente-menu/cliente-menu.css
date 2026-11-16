@@ -54,7 +54,6 @@
   width: 100%;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.2s ease;
 }
 
 .header h1 {
@@ -899,45 +898,25 @@ body.modal-abierto {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ================= MODAL ZOOM MEJORADO Y SEGURO ================= */
+/* ================= MODAL ZOOM RESTAURADO CON X EN LA ESQUINA DE LA IMAGEN ================= */
 .zoom-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.96);
+  background: rgba(0, 0, 0, 0.95);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* ❌ Botón X posicionado cómodamente dentro de la pantalla, debajo del navegador */
-.btn-cerrar-zoom-fijo {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(239, 68, 68, 0.95);
-  color: white;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  font-size: 1.3rem;
-  font-weight: bold;
-  cursor: pointer;
-  z-index: 100000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.7);
-}
-
 .zoom-container {
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: auto;
@@ -946,19 +925,45 @@ body.modal-abierto {
   padding: 20px;
 }
 
-.zoom-container img {
+.zoom-image-wrapper {
+  position: relative;
+  display: inline-flex;
   max-width: 90%;
   max-height: 82vh;
+}
+
+/* ❌ Botón X exactamente en la esquina superior derecha de la imagen */
+.btn-cerrar-zoom-esquina {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  background: #ef4444;
+  color: white;
+  border: 2px solid white;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.6);
+}
+
+.zoom-image-wrapper img {
+  max-width: 100%;
+  max-height: 80vh;
   object-fit: contain;
   transition: transform 0.1s ease-out;
   transform-origin: center center;
+  border-radius: 8px;
 }
 
 .zoom-hint-dedos {
-  position: absolute;
-  bottom: 25px;
-  left: 50%;
-  transform: translateX(-50%);
+  margin-top: 15px;
   background: rgba(15, 23, 42, 0.9);
   color: #38bdf8;
   padding: 8px 16px;
@@ -969,23 +974,4 @@ body.modal-abierto {
   white-space: nowrap;
   box-shadow: 0 4px 10px rgba(0,0,0,0.5);
   z-index: 100000;
-}
-
-/* Animaciones fluidas de empuje lateral */
-.animar-slide-izquierda {
-  animation: slideOutLeft 0.25s forwards;
-}
-
-.animar-slide-derecha {
-  animation: slideOutRight 0.25s forwards;
-}
-
-@keyframes slideOutLeft {
-  0% { transform: translateX(0); opacity: 1; }
-  100% { transform: translateX(-40px); opacity: 0; }
-}
-
-@keyframes slideOutRight {
-  0% { transform: translateX(0); opacity: 1; }
-  100% { transform: translateX(40px); opacity: 0; }
 }

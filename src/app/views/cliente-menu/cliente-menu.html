@@ -1,6 +1,4 @@
-<div class="menu-container"
-     (touchstart)="onCardTouchStart($event)" 
-     (touchend)="onCardTouchEnd($event)">
+<div class="menu-container">
   <header class="header">
     <!-- Fila 1: Logo, Nombre y Mesa -->
     <div class="logo-info">
@@ -35,7 +33,7 @@
     <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="seleccionarCategoriaConAnimacion('bebidas', 5)">🥤 Bebidas</button>
   </nav>
 
-  <!-- Lista de Productos en Grilla con Animación de Slide -->
+  <!-- Lista de Productos en Grilla -->
   <main class="lista-productos-grid" [ngClass]="claseAnimacionSwipe">
     <div *ngFor="let producto of productosFiltrados" class="producto-card-item" (click)="abrirModalOpciones(producto)">
       <div class="card-img-wrapper">
@@ -64,7 +62,7 @@
     <div *ngIf="productosFiltrados.length === 0" class="sin-datos"
       style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #6b7280; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
       <span style="font-size: 1.05rem; margin-bottom: 6px;">🍽️ No hay platos en esta categoría</span>
-      <span style="font-size: 0.78rem; color: #475569;">Desliza hacia los costados en cualquier parte para cambiar de sección 👇</span>
+      <span style="font-size: 0.78rem; color: #475569;">Selecciona otra categoría arriba en el menú 👆</span>
     </div>
   </main>
 
@@ -277,20 +275,25 @@
     </div>
   </div>
 
-  <!-- ================= MODAL VISOR DE IMAGEN CON ZOOM TÁCTIL Y X BIEN UBICADA ================= -->
+  <!-- ================= MODAL VISOR DE IMAGEN (X EN LA ESQUINA DE LA IMAGEN Y HINT QUE DESAPARECE AL HACER ZOOM) ================= -->
   <div class="modal-overlay zoom-overlay" *ngIf="imagenZoomUrl" (click)="cerrarZoomImagen()">
-    <!-- Botón X con posición segura y cómoda al alcance de la mano -->
-    <button class="btn-cerrar-zoom-fijo" (click)="cerrarZoomImagen()">✕</button>
-
     <div class="zoom-container" 
       (click)="$event.stopPropagation()"
       (touchstart)="onTouchStartZoom($event)"
       (touchmove)="onTouchMoveZoom($event)"
       (touchend)="onTouchEndZoom($event)">
-      <img [src]="imagenZoomUrl" 
-        [style.transform]="'scale(' + zoomScale + ')'"
-        (error)="$any($event.target).src = 'assets/img/plato-default.png'" 
-        alt="Vista ampliada" />
+      
+      <div class="zoom-image-wrapper">
+        <!-- ❌ Botón X posicionado exactamente en la esquina superior derecha de la imagen -->
+        <button class="btn-cerrar-zoom-esquina" (click)="cerrarZoomImagen()">✕</button>
+
+        <img [src]="imagenZoomUrl" 
+          [style.transform]="'scale(' + zoomScale + ')'"
+          (error)="$any($event.target).src = 'assets/img/plato-default.png'" 
+          alt="Vista ampliada" />
+      </div>
+
+      <!-- Hint de ayuda: se oculta automáticamente cuando zoomScale > 1 y reaparece al volver al estado normal -->
       <span class="zoom-hint-dedos" *ngIf="zoomScale === 1">🤏 Separa dos dedos para acercar / Paneo libre</span>
     </div>
   </div>
