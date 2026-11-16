@@ -11,7 +11,6 @@
   overflow-x: hidden;
 }
 
-/* Header fijo real que no se mueve al hacer scroll */
 .header {
   background-color: #1e293b;
   border-bottom: 1px solid #334155;
@@ -19,7 +18,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: fixed !important; /* Cambiado a fixed para que se quede anclado arriba */
+  position: fixed !important;
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
@@ -29,15 +28,14 @@
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
 }
 
-/* Espaciado superior para que el contenido no quede debajo del header fijo */
 .categorias {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding: 10px 14px;
   background: #0f172a;
-  position: fixed !important; /* Fijo debajo del header */
-  top: 85px !important; /* Ajusta según la altura de tu header fijo */
+  position: fixed !important;
+  top: 85px !important;
   left: 0;
   right: 0;
   width: 100% !important;
@@ -47,10 +45,9 @@
   scrollbar-width: thin;
 }
 
-/* Margen superior en la grilla para compensar los elementos fijos */
 .lista-productos-grid {
   padding: 14px 12px;
-  padding-top: 145px !important; /* Empuja los platos hacia abajo para que no los tape el header ni las categorías */
+  padding-top: 145px !important;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
@@ -119,6 +116,17 @@
   padding: 2px 6px;
   border-radius: 4px;
   border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.badge-zoom-hint {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  background: rgba(15, 23, 42, 0.85);
+  font-size: 0.65rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .card-body-info {
@@ -198,6 +206,8 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .modal-content {
@@ -210,6 +220,8 @@
   display: flex;
   flex-direction: column;
   border-top: 1px solid #334155;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 .modal-header {
@@ -239,7 +251,7 @@
 }
 
 .modal-personalizacion .modal-body {
-  overflow-y: hidden;
+  overflow-y: auto;
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
@@ -262,6 +274,7 @@
   object-fit: cover;
   border-radius: 6px;
   flex-shrink: 0;
+  border: 1px solid #38bdf8;
 }
 
 .info-texto-modal h3 {
@@ -379,6 +392,19 @@
   font-weight: bold;
   font-size: 0.8rem;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.icono-carrito-btn {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  line-height: 1;
 }
 
 .modal-resumen-cuenta {
@@ -803,52 +829,6 @@
   box-shadow: 0 0 40px rgba(56, 189, 248, 0.25) !important;
 }
 
-.banner-master-container + .categorias {
-  top: 79px;
-}
-
-.banner-visor-container + .categorias {
-  top: 79px;
-}
-
-/* 👑 BANNER MASTER SÓLIDO (Sin transparencias que dejen pasar platos) */
-.banner-master-container {
-  background: #064e3b; /* Fondo verde oscuro sólido (adiós al traslucido) */
-  border-bottom: 1px solid #10b981;
-  padding: 8px 14px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 0.75rem;
-  color: #34d399;
-  font-weight: 700;
-  box-sizing: border-box;
-  position: sticky;
-  top: 57px; /* Altura exacta donde termina el header */
-  z-index: 99;
-  text-align: center;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-}
-
-/* 👑 BANNER VISOR SÓLIDO */
-.banner-visor-container {
-  background: #78350f; /* Fondo ámbar/naranja oscuro sólido */
-  border-bottom: 1px solid #f59e0b;
-  padding: 8px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.75rem;
-  color: #fbbf24;
-  font-weight: 600;
-  box-sizing: border-box;
-  position: sticky;
-  top: 57px;
-  z-index: 99;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-}
-
 .logo-info {
   display: flex;
   justify-content: space-between;
@@ -856,14 +836,12 @@
   width: 100%;
 }
 
-/* ➖ LÍNEA PUNTEADA FINA DE SEPARACIÓN */
 .header-divider-dashed {
   width: 100%;
   border-top: 1px dashed #475569;
   opacity: 0.7;
 }
 
-/* 👑 FILA DE ESTADO DE ROL DENTRO DEL HEADER */
 .rol-status-row {
   display: flex;
   align-items: center;
@@ -916,4 +894,72 @@
   color: #0f172a;
   border-color: #38bdf8;
   font-weight: 700;
+}
+
+/* Bloquear el scroll de la página de fondo cuando el modal esté abierto */
+body.modal-abierto {
+  overflow: hidden !important;
+  height: 100vh !important;
+  position: fixed !important;
+  width: 100% !important;
+}
+
+/* Evitar selección de texto y menú contextual (diccionario) al tocar botones en móvil */
+.carrito-bar, 
+.resumen-enviado-container, 
+.txt-consumo-mesa, 
+.btn-pedir, 
+.btn-ver-detalle-flotante, 
+.btn-agregar-card, 
+.categorias button, 
+.badge-mesa {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Estilos para el modal de zoom de imagen */
+.zoom-overlay {
+  z-index: 2000 !important;
+  align-items: center !important;
+  background: rgba(0, 0, 0, 0.92) !important;
+  padding: 16px;
+}
+
+.zoom-container {
+  position: relative;
+  max-width: 95vw;
+  max-height: 85vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.zoom-container img {
+  max-width: 100%;
+  max-height: 80vh;
+  border-radius: 12px;
+  border: 2px solid #38bdf8;
+  object-fit: contain;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+.btn-cerrar-zoom {
+  position: absolute;
+  top: -14px;
+  right: -10px;
+  background: #ef4444;
+  color: white;
+  border: 2px solid #0f172a;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }

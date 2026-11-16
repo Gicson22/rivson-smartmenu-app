@@ -36,10 +36,11 @@
   <!-- Lista de Productos en Grilla de 2 Columnas -->
   <main class="lista-productos-grid">
     <div *ngFor="let producto of productosFiltrados" class="producto-card-item" (click)="abrirModalOpciones(producto)">
-      <div class="card-img-wrapper">
+      <div class="card-img-wrapper" (click)="abrirZoomImagen(producto.imagenUrl, $event)">
         <img [src]="producto.imagenUrl || 'assets/img/plato-default.png'"
           (error)="$any($event.target).src = 'assets/img/plato-default.png'" [alt]="producto.nombre" />
         <span class="badge-cat-tag">{{ producto.categoria | uppercase }}</span>
+        <span class="badge-zoom-hint">🔍</span>
       </div>
 
       <div class="card-body-info">
@@ -98,7 +99,9 @@
       <div class="modal-body">
         <div class="producto-elegido-info">
           <img [src]="productoSeleccionado.imagenUrl || 'assets/img/plato-default.png'"
-            (error)="$any($event.target).src = 'assets/img/plato-default.png'" alt="Plato" />
+            (error)="$any($event.target).src = 'assets/img/plato-default.png'" 
+            (click)="abrirZoomImagen(productoSeleccionado.imagenUrl)"
+            style="cursor: zoom-in;" alt="Plato" />
           <div class="info-texto-modal">
             <h3>{{ productoSeleccionado.nombre }}</h3>
             <p>{{ productoSeleccionado.descripcion }}</p>
@@ -137,7 +140,7 @@
 
         <div class="grupo-opcion">
           <label>📝 Comentarios o indicaciones (Opcional):</label>
-          <input type="text" [(ngModel)]="observacionItem" placeholder="Ej: Sin cebolla, zarandaja aparte..." class="input-observacion" />
+          <input type="text" [(ngModel)]="observacionItem" [placeholder]="placeholderObservacion" class="input-observacion" />
         </div>
       </div>
 
@@ -146,7 +149,9 @@
           <span>Precio Total:</span>
           <strong>S/ {{ calcularPrecioActualModal().toFixed(2) }}</strong>
         </div>
-        <button class="btn-confirmar-opcion" (click)="agregarAlCarritoConOpciones()">🛒 Agregar al Carrito</button>
+        <button class="btn-confirmar-opcion" (click)="agregarAlCarritoConOpciones()">
+          <span class="icono-carrito-btn">🛒</span> Agregar al Carrito
+        </button>
       </div>
     </div>
   </div>
@@ -156,7 +161,7 @@
     <div class="modal-content modal-resumen-cuenta">
       <div class="modal-header">
         <h2>Detalle de Cuenta - Mesa {{ numeroMesa }} 📋</h2>
-        <button class="btn-cerrar" (click)="mostrarModalCarrito = false">✕</button>
+        <button class="btn-cerrar" (click)="cerrarResumenMesa()">✕</button>
       </div>
 
       <div class="modal-body">
@@ -211,8 +216,6 @@
                          item.estadoItem === 'listo' ? '✅ ¡LISTO!' : '🍽️ Entregado' }}
                     </span>
 
-                    
-                    <!-- 👈 Píldora que avisa al cliente que se está llamando al mozo -->
                     <span *ngIf="item.estadoItem === 'listo'" class="pill-notificando-mozo"
                       style="font-size: 0.7rem; background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 3px 6px; border-radius: 4px; border: 1px dashed #10b981; display: inline-flex; align-items: center; gap: 4px;">
                       🔔 Notificando al mozo para llevar a mesa
@@ -258,12 +261,20 @@
         </div>
 
         <div class="modal-botones-dobles" *ngIf="esMaster && carrito.length > 0">
-          <button class="btn-seguir-pidiendo" (click)="mostrarModalCarrito = false">➕ Seguir Pidiendo</button>
+          <button class="btn-seguir-pidiendo" (click)="cerrarResumenMesa()">➕ Seguir Pidiendo</button>
           <button class="btn-enviar-modal" (click)="enviarPedidoNube()">Enviar 🔥</button>
         </div>
 
-        <button *ngIf="!esMaster || carrito.length === 0" class="btn-enviar-modal full-width" (click)="mostrarModalCarrito = false">Cerrar 👍</button>
+        <button *ngIf="!esMaster || carrito.length === 0" class="btn-enviar-modal full-width" (click)="cerrarResumenMesa()">Cerrar 👍</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= MODAL VISOR DE IMAGEN EN GRANDE ================= -->
+  <div class="modal-overlay zoom-overlay" *ngIf="imagenZoomUrl" (click)="cerrarZoomImagen()">
+    <div class="zoom-container" (click)="$event.stopPropagation()">
+      <button class="btn-cerrar-zoom" (click)="cerrarZoomImagen()">✕</button>
+      <img [src]="imagenZoomUrl" (error)="$any($event.target).src = 'assets/img/plato-default.png'" alt="Vista ampliada" />
     </div>
   </div>
 </div>

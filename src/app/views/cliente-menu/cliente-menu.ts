@@ -54,7 +54,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
   private alertaAbiertaMaster: boolean = false;
   private cargadoInicial: boolean = false;
 
-
   productos: Producto[] = [];
   categoriaSeleccionada: string = 'todos';
   filtroEstadoModal: string = 'solicitado';
@@ -70,12 +69,21 @@ export class ClienteMenu implements OnInit, OnDestroy {
   tamanioSeleccionado: 'personal' | 'mediano' | 'familiar' = 'personal';
   nivelPicanteSeleccionado: 'picante' | 'medio' | 'sin_aji' = 'medio';
   observacionItem: string = '';
+  imagenZoomUrl: string | null = null;
 
   @ViewChild('gridCards') gridCardsRef!: ElementRef<HTMLDivElement>;
 
   private unsubPedidos?: Unsubscribe;
   private unsubRestaurante?: Unsubscribe;
   private unsubControl?: Unsubscribe;
+  private unsubCarta?: Unsubscribe;
+
+  get placeholderObservacion(): string {
+    if (!this.productoSeleccionado) return 'Ej: Sin cebolla, poco hielo...';
+    return this.productoSeleccionado.categoria === 'bebidas'
+      ? 'Ej: Sin helar, con bastante hielo, vaso aparte...'
+      : 'Ej: Sin cebolla, zarandaja aparte, bien cocido...';
+  }
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
@@ -103,14 +111,16 @@ export class ClienteMenu implements OnInit, OnDestroy {
       this.inicializarDeviceToken();
       this.inicializarSesionUnica();
 
-      // Si cambia de mesa o entra por primera vez, limpiamos escuchas viejas y conectamos a la nueva mesa
       if (cambioDetectado || !this.cargadoInicial) {
         this.cargadoInicial = true;
         
-        // Limpiamos listeners previos de Firestore para evitar cruces de mesas
         if (this.unsubPedidos) this.unsubPedidos();
         if (this.unsubRestaurante) this.unsubRestaurante();
         if (this.unsubControl) this.unsubControl();
+        if (this.unsubCarta) this.unsubCarta();
+
+        this.limpiarIntervalosMaster();
+        this.detenerMonitorInactividad();
 
         this.cargarLogoRestaurante();
         this.cargarCartaRealFirestore();
@@ -123,6 +133,31 @@ export class ClienteMenu implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.limpiarIntervalosMaster();
     this.detenerMonitorInactividad();
+    if (this.unsubPedidos) this.unsubPedidos();
+    if (this.unsubRestaurante) this.unsubRestaurante();
+    if (this.unsubControl) this.unsubControl();
+    if (this.unsubCarta) this.unsubCarta();
+    document.body.classList.remove('modal-abierto');
+  }
+
+  private actualizarBloqueoScroll(): void {
+    const algunModalAbierto = this.mostrarModalOpciones || this.mostrarModalCarrito || !!this.imagenZoomUrl;
+    if (algunModalAbierto) {
+      document.body.classList.add('modal-abierto');
+    } else {
+      document.body.classList.remove('modal-abierto');
+    }
+  }
+
+  abrirZoomImagen(url: string | undefined, event?: Event): void {
+    if (event) event.stopPropagation();
+    this.imagenZoomUrl = url || 'assets/img/plato-default.png';
+    this.actualizarBloqueoScroll();
+  }
+
+  cerrarZoomImagen(): void {
+    this.imagenZoomUrl = null;
+    this.actualizarBloqueoScroll();
   }
 
   private limpiarIntervalosMaster(): void {
@@ -149,13 +184,12 @@ export class ClienteMenu implements OnInit, OnDestroy {
     this.deviceToken = token;
   }
 
-  // 👑 CONTROL DE MESA UNIVERSAL Y AUTOMÁTICO (CON VIGÍA EN VISORES)
   escucharControlMesaFirestore(): void {
     runInInjectionContext(this.injector, () => {
       try {
         const docRef = doc(this.firestore, 'sesiones_mesa', `${this.restaurantId}_mesa_${this.numeroMesa}`);
         
-        onSnapshot(docRef, async (docSnap: any) => {
+        this.unsubControl = onSnapshot(docRef, async (docSnap: any) => {
           const ahora = Date.now();
 
           if (!docSnap.exists()) {
@@ -199,15 +233,12 @@ export class ClienteMenu implements OnInit, OnDestroy {
               this.iniciarLatidoMaster(docRef);
               this.detenerMonitorInactividad();
 
-              // 🔔 DETECTAMOS SI HAY UNA SOLICITUD PENDIENTE DE OTRO DISPOSITIVO
               if (solicitud.pendiente && solicitud.solicitanteToken && solicitud.solicitanteToken !== this.deviceToken) {
                 this.mostrarAlertaSolicitudRelevo(docRef, solicitud);
               }
             } else {
               this.esMaster = false;
               this.limpiarIntervalosMaster();
-              
-              // ⚡ ACTIVAMOS EL VIGÍA AUTOMÁTICO EN LOS VISORES
               this.iniciarMonitorInactividadMaster(docRef);
             }
           }
@@ -239,14 +270,12 @@ export class ClienteMenu implements OnInit, OnDestroy {
       this.alertaAbiertaMaster = false;
       try {
         if (result.isConfirmed) {
-          // 🚀 TRANSFERENCIA INMEDIATA DEL MANDO
           await updateDoc(docRef, {
             masterToken: solicitud.solicitanteToken,
             ultimoLatido: Date.now(),
             solicitudRelevo: { pendiente: false, solicitanteToken: '' }
           });
 
-          // Nos quitamos el rol de Master localmente al instante
           this.esMaster = false;
           this.limpiarIntervalosMaster();
           this.iniciarMonitorInactividadMaster(docRef);
@@ -260,7 +289,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
             showConfirmButton: false
           });
         } else {
-          // Si rechaza, limpiamos la solicitud pendiente en Firestore
           await updateDoc(docRef, {
             solicitudRelevo: { pendiente: false, solicitanteToken: '' }
           });
@@ -272,7 +300,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
     });
   }
 
-  // 💓 LATIDO SILENCIOSO DEL MASTER
   private iniciarLatidoMaster(docRef: any): void {
     if (this.heartbeatInterval) return;
 
@@ -285,7 +312,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
     }, 3000);
   }
 
-  // 👁️ VIGÍA AUTOMÁTICO DE LOS VISORES
   private iniciarMonitorInactividadMaster(docRef: any): void {
     if (this.monitorInactividadMasterId) return;
 
@@ -344,7 +370,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
   }
 
   inicializarSesionUnica(): void {
-    // 💡 Limpiamos cualquier token o bloqueo anterior que haya quedado colgado en el navegador de otra mesa
     const keysAEliminar = Object.keys(localStorage).filter(k => k.startsWith('rivson_token_') || k.startsWith('rivson_bloqueado_'));
     keysAEliminar.forEach(k => localStorage.removeItem(k));
 
@@ -365,7 +390,7 @@ export class ClienteMenu implements OnInit, OnDestroy {
       const restRef = collection(this.firestore, 'restaurantes');
       const qRest = query(restRef, where('restaurantId', '==', this.restaurantId));
 
-      onSnapshot(qRest, (snapshot: any) => {
+      this.unsubRestaurante = onSnapshot(qRest, (snapshot: any) => {
         if (!snapshot.empty) {
           const restData = snapshot.docs[0].data();
           this.restaurantIconUrl = restData['logoUrl'] || '';
@@ -385,10 +410,16 @@ export class ClienteMenu implements OnInit, OnDestroy {
       return;
     }
     this.mostrarModalCarrito = true;
+    this.actualizarBloqueoScroll();
     this.granTotalMesaVisual = 0;
     setTimeout(() => {
       this.iniciarAnimacionTotal(this.granTotalMesa);
     }, 30);
+  }
+
+  cerrarResumenMesa(): void {
+    this.mostrarModalCarrito = false;
+    this.actualizarBloqueoScroll();
   }
 
   cargarCartaRealFirestore(): void {
@@ -397,7 +428,7 @@ export class ClienteMenu implements OnInit, OnDestroy {
         const productosRef = collection(this.firestore, 'productos');
         const q = query(productosRef, where('restaurantId', '==', this.restaurantId));
 
-        onSnapshot(q, (snapshot: any) => {
+        this.unsubCarta = onSnapshot(q, (snapshot: any) => {
           this.productos = snapshot.docs.map((docSnap: any) => ({
             id: docSnap.id,
             ...docSnap.data()
@@ -420,7 +451,7 @@ export class ClienteMenu implements OnInit, OnDestroy {
           where('numeroMesa', '==', this.numeroMesa)
         );
 
-        onSnapshot(q, (snapshot: any) => {
+        this.unsubPedidos = onSnapshot(q, (snapshot: any) => {
           let mapaAgrupado = new Map<string, ItemPedidoEnviado>();
           let hayPedidosActivos = false;
           let miSesionFuePagada = false;
@@ -495,6 +526,8 @@ export class ClienteMenu implements OnInit, OnDestroy {
     this.itemsPedidoEnviado = [];
     this.mostrarModalCarrito = false;
     this.mostrarModalOpciones = false;
+    this.imagenZoomUrl = null;
+    this.actualizarBloqueoScroll();
     this.pedidoEnviado = false;
     this.cuentaSolicitada = false;
     this.granTotalMesaVisual = 0;
@@ -551,10 +584,8 @@ export class ClienteMenu implements OnInit, OnDestroy {
       return;
     }
 
-    // ⚡ VALIDACIÓN: REVISAR SI TODOS LOS ÍTEMS ACTIVOS ESTÁN ENTREGADOS
     const hayPendientesDeEntrega = this.itemsPedidoEnviado.some(item => {
       const estado = (item.estadoItem || '').toLowerCase();
-      // Si hay algún ítem que NO sea entregado, servido o despachado (es decir, solicitado, preparando o listo)
       return estado !== 'entregado' && estado !== 'servido' && estado !== 'despachado' && estado !== 'cancelado';
     });
 
@@ -568,10 +599,9 @@ export class ClienteMenu implements OnInit, OnDestroy {
         background: '#1e293b',
         color: '#ffffff'
       });
-      return; // Detenemos la ejecución aquí
+      return;
     }
 
-    // Si todo está entregado, procede con normalidad a pedir la cuenta
     Swal.fire({
       title: `¿Solicitar Cuenta - Mesa ${this.numeroMesa}?`,
       text: 'Se le notificará al mozo asignado para que se acerque a cobrar.',
@@ -677,11 +707,13 @@ export class ClienteMenu implements OnInit, OnDestroy {
     this.nivelPicanteSeleccionado = 'medio';
     this.observacionItem = '';
     this.mostrarModalOpciones = true;
+    this.actualizarBloqueoScroll();
   }
 
   cerrarModalOpciones(): void {
     this.mostrarModalOpciones = false;
     this.productoSeleccionado = null;
+    this.actualizarBloqueoScroll();
   }
 
   calcularPrecioActualModal(): number {
@@ -821,7 +853,7 @@ export class ClienteMenu implements OnInit, OnDestroy {
         }
 
         this.carrito = [];
-        this.mostrarModalCarrito = false;
+        this.cerrarResumenMesa();
         this.cdr.detectChanges();
 
         Swal.fire({
