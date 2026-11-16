@@ -77,6 +77,10 @@ export class ClienteMenu implements OnInit, OnDestroy {
   private initialPinchDistance: number = 0;
   private lastZoomScale: number = 1;
 
+  // Variables para control de gestos Swipe táctil horizontal en categorías
+  private touchStartX: number = 0;
+  private touchEndX: number = 0;
+
   @ViewChild('gridCards') gridCardsRef!: ElementRef<HTMLDivElement>;
 
   private unsubPedidos?: Unsubscribe;
@@ -93,7 +97,6 @@ export class ClienteMenu implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
-      // Respaldo directo desde window.location.search por si el router pierde parámetros al redirigir
       const urlParams = new URLSearchParams(window.location.search);
       const mesaParam = params.get('mesa') || urlParams.get('mesa');
       const localParam = params.get('local') || urlParams.get('local');
@@ -212,6 +215,53 @@ export class ClienteMenu implements OnInit, OnDestroy {
     const dy = touches[0].clientY - touches[1].clientY;
     return Math.hypot(dx, dy);
   }
+
+  // ================= MÉTODOS DE SWIPE Y NAVEGACIÓN TÁCTIL DE CATEGORÍAS =================
+  seleccionarCategoria(cat: string): void {
+    this.categoriaSeleccionada = cat;
+    this.sincronizarScrollNavbarCategorias();
+  }
+
+  onCardTouchStart(event: TouchEvent): void {
+    if (event.changedTouches && event.changedTouches.length > 0) {
+      this.touchStartX = event.changedTouches[0].screenX;
+    }
+  }
+
+  onCardTouchEnd(event: TouchEvent): void {
+    if (event.changedTouches && event.changedTouches.length > 0) {
+      this.touchEndX = event.changedTouches[0].screenX;
+      this.manejarSwipeCategorias();
+    }
+  }
+
+  private manejarSwipeCategorias(): void {
+    const umbralMinimo = 60; // Píxeles mínimos de desplazamiento para considerar el gesto swipe
+    const categorias = ['todos', 'ceviches', 'sudados', 'secos', 'jaleas', 'bebidas'];
+    const indexActual = categorias.indexOf(this.categoriaSeleccionada);
+
+    if (this.touchEndX + umbralMinimo < this.touchStartX) {
+      // 👈 Swipe a la izquierda -> Siguiente categoría
+      if (indexActual < categorias.length - 1) {
+        this.seleccionarCategoria(categorias[indexActual + 1]);
+      }
+    } else if (this.touchEndX > this.touchStartX + umbralMinimo) {
+      // 👉 Swipe a la derecha -> Categoría anterior
+      if (indexActual > 0) {
+        this.seleccionarCategoria(categorias[indexActual - 1]);
+      }
+    }
+  }
+
+  private sincronizarScrollNavbarCategorias(): void {
+    setTimeout(() => {
+      const botonActivo = document.querySelector('.categorias button.active');
+      if (botonActivo) {
+        botonActivo.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }, 50);
+  }
+  // ====================================================================================
 
   private limpiarIntervalosMaster(): void {
     if (this.heartbeatInterval) {

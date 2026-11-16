@@ -25,16 +25,18 @@
 
   <!-- Filtro por Categorías (Navbar Deslizable) -->
   <nav class="categorias">
-    <button [class.active]="categoriaSeleccionada === 'todos'" (click)="categoriaSeleccionada = 'todos'">✨ Todos</button>
-    <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="categoriaSeleccionada = 'ceviches'">🐟 Ceviches</button>
-    <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="categoriaSeleccionada = 'sudados'">🍲 Sudados</button>
-    <button [class.active]="categoriaSeleccionada === 'secos'" (click)="categoriaSeleccionada = 'secos'">🥩 Secos</button>
-    <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="categoriaSeleccionada = 'jaleas'">🍤 Jaleas</button>
-    <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="categoriaSeleccionada = 'bebidas'">🥤 Bebidas</button>
+    <button [class.active]="categoriaSeleccionada === 'todos'" (click)="seleccionarCategoria('todos')">✨ Todos</button>
+    <button [class.active]="categoriaSeleccionada === 'ceviches'" (click)="seleccionarCategoria('ceviches')">🐟 Ceviches</button>
+    <button [class.active]="categoriaSeleccionada === 'sudados'" (click)="seleccionarCategoria('sudados')">🍲 Sudados</button>
+    <button [class.active]="categoriaSeleccionada === 'secos'" (click)="seleccionarCategoria('secos')">🥩 Secos</button>
+    <button [class.active]="categoriaSeleccionada === 'jaleas'" (click)="seleccionarCategoria('jaleas')">🍤 Jaleas</button>
+    <button [class.active]="categoriaSeleccionada === 'bebidas'" (click)="seleccionarCategoria('bebidas')">🥤 Bebidas</button>
   </nav>
 
-  <!-- Lista de Productos en Grilla de 2 Columnas (Tal como estaba originalmente) -->
-  <main class="lista-productos-grid">
+  <!-- Lista de Productos en Grilla de 2 Columnas con soporte de Swipe Táctil -->
+  <main class="lista-productos-grid" 
+        (touchstart)="onCardTouchStart($event)" 
+        (touchend)="onCardTouchEnd($event)">
     <div *ngFor="let producto of productosFiltrados" class="producto-card-item" (click)="abrirModalOpciones(producto)">
       <div class="card-img-wrapper">
         <img [src]="producto.imagenUrl || 'assets/img/plato-default.png'"
@@ -274,14 +276,16 @@
     </div>
   </div>
 
-  <!-- ================= MODAL VISOR DE IMAGEN CON ZOOM TÁCTIL (PINCH-TO-ZOOM) ================= -->
+  <!-- ================= MODAL VISOR DE IMAGEN CON ZOOM TÁCTIL Y X FIJA ================= -->
   <div class="modal-overlay zoom-overlay" *ngIf="imagenZoomUrl" (click)="cerrarZoomImagen()">
+    <!-- Botón X fijo en la esquina superior que nunca se mueve con el scroll/zoom -->
+    <button class="btn-cerrar-zoom-fijo" (click)="cerrarZoomImagen()">✕</button>
+
     <div class="zoom-container" 
       (click)="$event.stopPropagation()"
       (touchstart)="onTouchStartZoom($event)"
       (touchmove)="onTouchMoveZoom($event)"
       (touchend)="onTouchEndZoom($event)">
-      <button class="btn-cerrar-zoom" (click)="cerrarZoomImagen()">✕</button>
       <img [src]="imagenZoomUrl" 
         [style.transform]="'scale(' + zoomScale + ')'"
         (error)="$any($event.target).src = 'assets/img/plato-default.png'" 
