@@ -52,6 +52,8 @@ export class ClienteMenu implements OnInit, OnDestroy {
   deviceToken: string = '';
   esMaster: boolean = false;
   private alertaAbiertaMaster: boolean = false;
+  private cargadoInicial: boolean = false;
+
 
   productos: Producto[] = [];
   categoriaSeleccionada: string = 'todos';
@@ -71,24 +73,61 @@ export class ClienteMenu implements OnInit, OnDestroy {
 
   @ViewChild('gridCards') gridCardsRef!: ElementRef<HTMLDivElement>;
 
-  ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
-      if (params['mesa']) {
-        this.numeroMesa = Number(params['mesa']);
-      }
-      if (params['local']) {
-        this.restaurantId = params['local'].trim().toLowerCase();
-      }
+  // ngOnInit(): void {
+  //   this.route.queryParams.subscribe(params => {
+  //     if (params['mesa']) {
+  //       this.numeroMesa = Number(params['mesa']);
+  //     }
+  //     if (params['local']) {
+  //       this.restaurantId = params['local'].trim().toLowerCase();
+  //     }
       
-      this.inicializarDeviceToken();
-      this.inicializarSesionUnica();
-    });
+  //     this.inicializarDeviceToken();
+  //     this.inicializarSesionUnica();
+  //   });
 
-    this.cargarLogoRestaurante();
-    this.cargarCartaRealFirestore();
-    this.escucharPedidosMesaFirestore();
-    this.escucharControlMesaFirestore();
-  }
+  //   this.cargarLogoRestaurante();
+  //   this.cargarCartaRealFirestore();
+  //   this.escucharPedidosMesaFirestore();
+  //   this.escucharControlMesaFirestore();
+  // }
+
+
+  ngOnInit(): void {
+  // Usamos paramMap y queryParamMap para reaccionar al instante ante cualquier cambio de QR
+  this.route.queryParamMap.subscribe(params => {
+    const mesaParam = params.get('mesa');
+    const localParam = params.get('local');
+
+    let necesitaRecargar = false;
+
+    if (mesaParam) {
+      const nuevaMesa = Number(mesaParam);
+      if (this.numeroMesa !== nuevaMesa) {
+        this.numeroMesa = nuevaMesa;
+        necesitaRecargar = true;
+      }
+    }
+
+    if (localParam) {
+      const nuevoLocal = localParam.trim().toLowerCase();
+      if (this.restaurantId !== nuevoLocal) {
+        this.restaurantId = nuevoLocal;
+        necesitaRecargar = true;
+      }
+    }
+    
+    this.inicializarDeviceToken();
+    this.inicializarSesionUnica();
+
+    if (necesitaRecargar || !this.productos.length) {
+      this.cargarLogoRestaurante();
+      this.cargarCartaRealFirestore();
+      this.escucharPedidosMesaFirestore();
+      this.escucharControlMesaFirestore();
+    }
+  });
+}
 
   ngOnDestroy(): void {
     this.limpiarIntervalosMaster();
