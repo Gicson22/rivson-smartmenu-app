@@ -821,6 +821,24 @@ export class DueniaPanel implements OnInit, OnDestroy {
 
           await Promise.all(promesasEliminacion);
 
+          // ⚡ 2. RESETEAR LOS CONTADORES DE LOS COCINEROS A CERO (¡AQUÍ ESTABA EL DETALLE!)
+          const usuariosRef = collection(this.firestore, 'usuarios');
+          const qCocineros = query(
+            usuariosRef, 
+            where('restaurantId', '==', this.restaurantIdActivo), 
+            where('rol', '==', 'cocina')
+          );
+          const snapshotCocineros = await getDocs(qCocineros);
+
+          const promesasResetCocineros = snapshotCocineros.docs.map(docCocina => {
+            const userDocRef = doc(this.firestore, `usuarios/${docCocina.id}`);
+            return updateDoc(userDocRef, {
+              platosPreparadosHoy: 0,
+              historialPlatos: []
+            });
+          });
+          await Promise.all(promesasResetCocineros);
+
           Swal.fire({
             icon: 'success',
             title: '¡Caja Cerrada y Limpia!',
