@@ -29,6 +29,14 @@
         ⭐ Mis Mesas <span class="badge-count">{{ contarTab('mis-mesas') }}</span>
       </button>
 
+      <!-- ⚡ NUEVA PESTAÑA: SALÓN GENERAL -->
+      <button 
+        class="tab-btn" 
+        [class.active]="filtroMozoTab === 'salon'" 
+        (click)="filtroMozoTab = 'salon'">
+        🍽️ Salón General <span class="badge-count">{{ contarTab('salon') }}</span>
+      </button>
+
       <button 
         class="tab-btn" 
         [class.active]="filtroMozoTab === 'cobradas'" 

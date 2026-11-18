@@ -36,6 +36,7 @@ export interface MesaSalon {
   itemsEnMesa: ItemMesaMozo[];
   totalMesa: number;
   solicitandoCobro?: boolean;
+  avisoAsignacionMostrado?: boolean; // 👈 BANDERA INTERNA: Evita que el Toast salte repetidas veces por cliente
 }
 
 export interface MesaCobradaHistorial {
@@ -68,7 +69,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
   restaurantId: string = 'moscu';
   restaurantIconUrl: string = '';
   
-  filtroMozoTab: 'mis-mesas' | 'cobradas' | 'alertas' = 'alertas';
+  filtroMozoTab: 'mis-mesas' | 'cobradas' | 'alertas' | 'salon' = 'alertas';
   mesasSalon: MesaSalon[] = [];
   mesasCobradasHistorial: MesaCobradaHistorial[] = [];
   
@@ -101,7 +102,8 @@ export class MozoAtencion implements OnInit, OnDestroy {
       estadoMesa: 'libre',
       itemsEnMesa: [],
       totalMesa: 0,
-      solicitandoCobro: false
+      solicitandoCobro: false,
+      avisoAsignacionMostrado: false
     }));
   }
 
@@ -123,24 +125,23 @@ export class MozoAtencion implements OnInit, OnDestroy {
   }
 
   cargarMozoDesdeFirestore(): void {
-    runInInjectionContext(this.injector, () => {
-      const usuariosRef = collection(this.firestore, 'usuarios');
-      const qMozos = query(
-        usuariosRef, 
-        where('rol', '==', 'mozo'),
-        where('restaurantId', '==', this.restaurantId.trim().toLowerCase())
-      );
-
-      this.unsubscribeMozo = onSnapshot(qMozos, (snapshot: QuerySnapshot<DocumentData>) => {
-        if (!snapshot.empty) {
-          const dataMozo = snapshot.docs[0].data();
-          this.nombreMozoActual = dataMozo['nombre'] || dataMozo['nombres'] || 'Mozo de Turno';
-        } else {
-          this.nombreMozoActual = 'Mozo Principal';
+    try {
+      const sesionGuardada = localStorage.getItem('sesion_picanteria');
+      if (sesionGuardada) {
+        const datosMozo = JSON.parse(sesionGuardada);
+        this.nombreMozoActual = datosMozo.nombre || 'Mozo de Turno';
+        if (datosMozo.restaurantId) {
+          this.restaurantId = datosMozo.restaurantId;
         }
-        this.cdr.detectChanges();
-      });
-    });
+      } else {
+        this.nombreMozoActual = 'Mozo Principal';
+      }
+      this.cdr.detectChanges();
+    } catch (error) {
+      console.error('Error al leer la sesión del mozo:', error);
+      this.nombreMozoActual = 'Mozo Principal';
+      this.cdr.detectChanges();
+    }
   }
 
   escucharPedidosSalonFirestore(): void {
@@ -153,6 +154,14 @@ export class MozoAtencion implements OnInit, OnDestroy {
         );
 
         this.unsubscribePedidos = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
+          // ⚡ 1. MAPA INTELIGENTE: Solo guardamos el mozo si la mesa tiene consumos activos Y no está pagada
+          const mozosAsignadosPrevios = new Map<number, string>();
+          this.mesasSalon.forEach(m => {
+            if (m.mozoAsignado && m.itemsEnMesa.length > 0) {
+              mozosAsignadosPrevios.set(m.numeroMesa, m.mozoAsignado);
+            }
+          });
+
           this.mesasSalon.forEach(m => {
             m.itemsEnMesa = [];
             m.totalMesa = 0;
@@ -166,28 +175,11 @@ export class MozoAtencion implements OnInit, OnDestroy {
             const estadoGlobal = data['estado'] || 'solicitado';
             const items = data['items'] || [];
             const totalDoc = data['total'] || 0;
-            const mozoEnBD = data['mozoAsignado'] || null;
+            let mozoEnBD = data['mozoAsignado'] || null;
             const solicitandoCobro = data['solicitandoCobro'] || false;
 
-            // if (estadoGlobal === 'pagado') {
-            //   const yaExisteEnHistorial = this.mesasCobradasHistorial.some(h => h.numeroMesa === numMesa && h.total === totalDoc);
-            //   if (!yaExisteEnHistorial) {
-            //     const ahora = new Date();
-            //     const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-            //     const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-            //     this.mesasCobradasHistorial.unshift({
-            //       numeroMesa: numMesa,
-            //       total: totalDoc,
-            //       items: items,
-            //       fecha: `${fechaCorta} - ${horaCorta}`
-            //     });
-            //   }
-            //   return;
-            // }
-
+            // ⚡ SI EL PEDIDO ESTÁ PAGADO, IGNORAMOS Y LIMPIAMOS CUALQUIER RASTRO DE MOZO ANTERIOR PARA ESTE NUEVO CICLO
             if (estadoGlobal === 'pagado') {
-              // ⚡ VALIDACIÓN ANTI-DUPLICIDAD: Usamos el ID del documento de Firestore o una clave única combinada
               const idUnicoCobro = docSnap.id;
               const yaExisteEnHistorial = this.mesasCobradasHistorial.some((h: any) => h.idDocumento === idUnicoCobro || (h.numeroMesa === numMesa && h.total === totalDoc));
               
@@ -197,7 +189,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
                 const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
                 this.mesasCobradasHistorial.unshift({
-                  idDocumento: idUnicoCobro, // 👈 Guardamos el ID único para rastreo
+                  idDocumento: idUnicoCobro,
                   numeroMesa: numMesa,
                   total: totalDoc,
                   items: items,
@@ -211,7 +203,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
             if (!mesaEncontrada) {
               mesaEncontrada = {
                 numeroMesa: numMesa,
-                mozoAsignado: mozoEnBD,
+                mozoAsignado: null,
                 estadoMesa: 'libre',
                 itemsEnMesa: [],
                 totalMesa: 0,
@@ -220,7 +212,32 @@ export class MozoAtencion implements OnInit, OnDestroy {
               this.mesasSalon.push(mesaEncontrada);
             }
 
+            // ⚡ 2. HERENCIA SOLO SI LA MESA YA ESTABA EN CURSO: Si el pedido nuevo llega sin mozo, pero la mesa ya venía siendo atendida (y no se ha cobrado), le mantenemos el mozo
+            if (!mozoEnBD && mozosAsignadosPrevios.has(numMesa)) {
+              mozoEnBD = mozosAsignadosPrevios.get(numMesa)!;
+            }
+
             if (mozoEnBD) {
+              // 🔔 TOAST PARA LOS DEMÁS MOZOS: Si la mesa estaba libre (no estaba en el mapa previo) 
+              // y el mozo que la tomó es un colega distinto a mí, lanzamos el aviso visual UNA SOLA VEZ.
+              if (!mozosAsignadosPrevios.has(numMesa) && mozoEnBD !== this.nombreMozoActual && !mesaEncontrada.avisoAsignacionMostrado) {
+                mesaEncontrada.avisoAsignacionMostrado = true;
+
+                const Toast = Swal.mixin({
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 4000,
+                  timerProgressBar: true,
+                  background: '#0f172a',
+                  color: '#fbbf24'
+                });
+                Toast.fire({
+                  icon: 'info',
+                  title: `🔔 El mozo ${mozoEnBD} tomó la Mesa N° ${numMesa}`
+                });
+              }
+
               mesaEncontrada.mozoAsignado = mozoEnBD;
             }
 
@@ -287,11 +304,12 @@ export class MozoAtencion implements OnInit, OnDestroy {
       }
     });
   }
-
+  
   async tomarMesa(mesa: MesaSalon): Promise<void> {
     try {
       if (!mesa.itemsEnMesa || mesa.itemsEnMesa.length === 0) return;
 
+      // ⚡ Actualizamos todos los documentos de pedidos asociados a esta mesa en Firestore
       const promesas = mesa.itemsEnMesa.map(item => {
         const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
         return updateDoc(pedidoRef, {
@@ -302,16 +320,24 @@ export class MozoAtencion implements OnInit, OnDestroy {
       await Promise.all(promesas);
 
       mesa.mozoAsignado = this.nombreMozoActual;
+      mesa.avisoAsignacionMostrado = true; 
       mesa.estadoMesa = 'atendiendo';
       this.filtroMozoTab = 'mis-mesas';
       this.cdr.detectChanges();
 
-      Swal.fire({
+      // ⚡ EL TOAST DE CONFIRMACIÓN PERSONAL PARA EL MOZO QUE TOMA LA MESA
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        background: '#0f172a',
+        color: '#38bdf8'
+      });
+      Toast.fire({
         icon: 'success',
-        title: '¡Mesa Asignada!',
-        text: `Ahora te haces cargo de la Mesa N° ${mesa.numeroMesa}.`,
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#3b82f6'
+        title: `¡Te hiciste cargo de la Mesa N° ${mesa.numeroMesa}!`
       });
 
     } catch (error) {
@@ -547,6 +573,8 @@ export class MozoAtencion implements OnInit, OnDestroy {
       return this.mesasSalon.filter(m => !m.mozoAsignado && m.itemsEnMesa.length > 0 && m.itemsEnMesa.some(i => i.estado !== 'entregado'));
     } else if (this.filtroMozoTab === 'mis-mesas') {
       return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual && m.itemsEnMesa.length > 0);
+    } else if (this.filtroMozoTab === 'salon') {
+      return this.mesasSalon.filter(m => m.itemsEnMesa.length > 0);
     }
     return [];
   }
@@ -554,6 +582,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
   contarTab(tipo: string): number {
     if (tipo === 'alertas') return this.mesasSalon.filter(m => !m.mozoAsignado && m.itemsEnMesa.length > 0 && m.itemsEnMesa.some(i => i.estado !== 'entregado')).length;
     if (tipo === 'mis-mesas') return this.mesasSalon.filter(m => m.mozoAsignado === this.nombreMozoActual && m.itemsEnMesa.length > 0).length;
+    if (tipo === 'salon') return this.mesasSalon.filter(m => m.itemsEnMesa.length > 0).length;
     if (tipo === 'cobradas') return this.mesasCobradasHistorial.length;
     return 0;
   }
@@ -561,7 +590,6 @@ export class MozoAtencion implements OnInit, OnDestroy {
   async cobrarMesa(mesa: MesaSalon): Promise<void> {
     if (!mesa.itemsEnMesa || mesa.itemsEnMesa.length === 0) return;
 
-    // ⚡ VALIDACIÓN: REVISAR SI TODOS LOS ÍTEMS DE LA MESA ESTÁN ENTREGADOS
     const hayPendientesDeEntrega = mesa.itemsEnMesa.some(item => {
       const estado = (item.estado || '').toLowerCase();
       return estado !== 'entregado' && estado !== 'servido' && estado !== 'despachado' && estado !== 'cancelado';
@@ -605,7 +633,6 @@ export class MozoAtencion implements OnInit, OnDestroy {
 
       await Promise.all(promesas);
 
-      // 🕒 Formato compacto: Fecha corta + Hora (Ej: 13/11 - 19:07)
       const ahora = new Date();
       const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
       const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -623,6 +650,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
       mesa.itemsEnMesa = [];
       mesa.totalMesa = 0;
       mesa.solicitandoCobro = false;
+      mesa.avisoAsignacionMostrado = false; // Reiniciamos bandera para el próximo cliente
 
       this.mesasConAlertaCobroEmitida.delete(mesa.numeroMesa);
       this.cdr.detectChanges();
