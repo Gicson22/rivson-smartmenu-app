@@ -5,16 +5,23 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: #0f172a;
   color: white;
-  min-height: 100vh;
-  padding-bottom: 30px;
+  height: 100vh; 
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
 }
 
 .header-fijo-mozo {
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 100;
   background-color: #0f172a;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+
+.contenido-mozo {
+  flex: 1;
+  overflow-y: auto; 
+  padding: 16px;
 }
 
 .header-mozo {
@@ -99,10 +106,6 @@
   font-size: 0.65rem;
 }
 
-.contenido-mozo {
-  padding: 16px;
-}
-
 .card-mesa-mozo {
   background: #1e293b;
   border-radius: 10px;
@@ -114,6 +117,40 @@
 .card-mesa-mozo.mia { border-color: #3b82f6; }
 .card-mesa-mozo.alerta-card { border-color: #ef4444; background: #221013; animation: pulse-border 2s infinite; }
 .card-mesa-mozo.ajena { opacity: 0.8; border-color: #334155; }
+
+/* 🔔 Pulso rojizo exclusivo cuando el cliente agrega ítems a una mesa ya asignada a este mozo */
+.card-mesa-mozo.nuevo-pedido-mozo {
+  border: 2px solid #ef4444 !important;
+  background: #221013;
+  animation: latidoNuevoPedido 1.3s infinite ease-in-out;
+}
+
+.aviso-nuevo-item-mesa {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 5px 8px;
+  border-radius: 6px;
+  text-align: center;
+  margin-top: 4px;
+}
+
+@keyframes latidoNuevoPedido {
+  0% {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.8);
+  }
+  50% {
+    border-color: #f87171;
+    box-shadow: 0 0 0 7px rgba(239, 68, 68, 0);
+  }
+  100% {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
 
 .card-mesa-header {
   background: #0f172a;
@@ -396,7 +433,7 @@
   border: 1px solid rgba(16, 185, 129, 0.3);
   padding: 3px 8px;
   border-radius: 4px;
-  font-size: 0.68rem; /* 👈 Letra un poco más grande y legible */
+  font-size: 0.68rem;
   font-weight: 700;
   flex: 0 0 auto;
   text-align: right;

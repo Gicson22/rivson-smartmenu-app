@@ -52,7 +52,16 @@
       
       <!-- ⚡ LISTADO DE MESAS ACTIVAS O EN ALERTA -->
       <ng-container *ngIf="filtroMozoTab !== 'cobradas'">
-        <div *ngFor="let mesa of mesasFiltradas" class="card-mesa-mozo" [ngClass]="{'mia': mesa.mozoAsignado === nombreMozoActual && mesa.itemsEnMesa.length > 0, 'alerta-card': !mesa.mozoAsignado && mesa.itemsEnMesa.length > 0, 'ajena': mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual}">
+        <div
+          *ngFor="let mesa of mesasFiltradas"
+          class="card-mesa-mozo"
+          [ngClass]="{
+            'mia': mesa.mozoAsignado === nombreMozoActual && mesa.itemsEnMesa.length > 0,
+            'alerta-card': !mesa.mozoAsignado && mesa.itemsEnMesa.length > 0,
+            'ajena': mesa.mozoAsignado && mesa.mozoAsignado !== nombreMozoActual,
+            'nuevo-pedido-mozo': mesa.tieneNuevoPedido && mesa.mozoAsignado === nombreMozoActual
+          }"
+        >
           
           <div class="card-mesa-header">
             <span class="tag-mesa">MESA N° {{ mesa.numeroMesa }}</span>
@@ -84,6 +93,11 @@
               <div class="header-bloque-mesa">
                 <span class="titulo-platos-box">📋 Consumo en Mesa:</span>
                 <span class="total-mesa-tag">Total: S/ {{ mesa.totalMesa.toFixed(2)}}</span>
+              </div>
+
+              <!-- ⚡ AVISO VISUAL SI EL CLIENTE AGREGÓ MÁS ÍTEMS (SOLO PARA EL MOZO ASIGNADO) -->
+              <div *ngIf="mesa.tieneNuevoPedido && mesa.mozoAsignado === nombreMozoActual" class="aviso-nuevo-item-mesa">
+                🔔 ¡Cliente agregó ítems! Revisa el detalle
               </div>
 
               <!-- ⚡ AVISO VISUAL SI EL CLIENTE PIDIÓ LA CUENTA -->

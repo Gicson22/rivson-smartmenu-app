@@ -36,11 +36,13 @@ export interface MesaSalon {
   itemsEnMesa: ItemMesaMozo[];
   totalMesa: number;
   solicitandoCobro?: boolean;
-  avisoAsignacionMostrado?: boolean; // 👈 BANDERA INTERNA: Evita que el Toast salte repetidas veces por cliente
+  avisoAsignacionMostrado?: boolean;
+  tieneNuevoPedido?: boolean;
 }
 
 export interface MesaCobradaHistorial {
   idDocumento?: string;
+  idsDocumentos?: string[];
   numeroMesa: number;
   total: number;
   items: ItemMesaMozo[];
@@ -75,6 +77,8 @@ export class MozoAtencion implements OnInit, OnDestroy {
   
   mesaModalAbierta: MesaSalon | null = null;
   private mesasConAlertaCobroEmitida: Set<number> = new Set();
+  private conteoItemsPorMesa: Map<number, number> = new Map();
+  private inicializacionLista: boolean = false;
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
@@ -144,6 +148,53 @@ export class MozoAtencion implements OnInit, OnDestroy {
     }
   }
 
+  private consolidarCobradaEnHistorial(
+    docId: string,
+    numMesa: number,
+    totalDoc: number,
+    items: any[],
+    fechaStr: string
+  ): void {
+    // Evita procesar el mismo documento de pedido dos veces
+    const yaProcesado = this.mesasCobradasHistorial.some(
+      h => h.idDocumento === docId || (h.idsDocumentos && h.idsDocumentos.includes(docId))
+    );
+    if (yaProcesado) return;
+
+    // Busca si ya existe una card cobrada para la misma mesa en la misma fecha/hora de cierre
+    const cardExistente = this.mesasCobradasHistorial.find(
+      h => h.numeroMesa === numMesa && h.fecha === fechaStr
+    );
+
+    const itemsMapeados: ItemMesaMozo[] = (items || []).map((item: any) => ({
+      idDocumentoPedido: docId,
+      nombre: item.nombre,
+      cantidad: item.cantidad,
+      precioSeleccionado: item.precioSeleccionado,
+      estado: 'entregado',
+      destino: item.destino || 'cocina',
+      tamanioSeleccionado: item.tamanioSeleccionado,
+      nivelPicante: item.nivelPicante,
+      observacion: item.observacion,
+      cocineroAsignado: item.cocineroAsignado || null
+    }));
+
+    if (cardExistente) {
+      cardExistente.idsDocumentos = [...(cardExistente.idsDocumentos || []), docId];
+      cardExistente.total += Number(totalDoc || 0);
+      cardExistente.items = [...cardExistente.items, ...itemsMapeados];
+    } else {
+      this.mesasCobradasHistorial.unshift({
+        idDocumento: docId,
+        idsDocumentos: [docId],
+        numeroMesa: numMesa,
+        total: Number(totalDoc || 0),
+        items: itemsMapeados,
+        fecha: fechaStr
+      });
+    }
+  }
+
   escucharPedidosSalonFirestore(): void {
     runInInjectionContext(this.injector, () => {
       try {
@@ -154,7 +205,6 @@ export class MozoAtencion implements OnInit, OnDestroy {
         );
 
         this.unsubscribePedidos = onSnapshot(q, (snapshot: QuerySnapshot<DocumentData>) => {
-          // ⚡ 1. MAPA INTELIGENTE: Solo guardamos el mozo si la mesa tiene consumos activos Y no está pagada
           const mozosAsignadosPrevios = new Map<number, string>();
           this.mesasSalon.forEach(m => {
             if (m.mozoAsignado && m.itemsEnMesa.length > 0) {
@@ -174,28 +224,17 @@ export class MozoAtencion implements OnInit, OnDestroy {
             const numMesa = Number(data['numeroMesa'] || 1);
             const estadoGlobal = data['estado'] || 'solicitado';
             const items = data['items'] || [];
-            const totalDoc = data['total'] || 0;
+            const totalDoc = Number(data['total'] || 0);
             let mozoEnBD = data['mozoAsignado'] || null;
             const solicitandoCobro = data['solicitandoCobro'] || false;
 
-            // ⚡ SI EL PEDIDO ESTÁ PAGADO, IGNORAMOS Y LIMPIAMOS CUALQUIER RASTRO DE MOZO ANTERIOR PARA ESTE NUEVO CICLO
             if (estadoGlobal === 'pagado') {
-              const idUnicoCobro = docSnap.id;
-              const yaExisteEnHistorial = this.mesasCobradasHistorial.some((h: any) => h.idDocumento === idUnicoCobro || (h.numeroMesa === numMesa && h.total === totalDoc));
-              
-              if (!yaExisteEnHistorial) {
-                const ahora = new Date();
-                const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-                const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                this.mesasCobradasHistorial.unshift({
-                  idDocumento: idUnicoCobro,
-                  numeroMesa: numMesa,
-                  total: totalDoc,
-                  items: items,
-                  fecha: `${fechaCorta} - ${horaCorta}`
-                } as any);
-              }
+              const ahora = new Date();
+              const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
+              const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              const fechaHoraCompacta = `${fechaCorta} - ${horaCorta}`;
+
+              this.consolidarCobradaEnHistorial(docSnap.id, numMesa, totalDoc, items, fechaHoraCompacta);
               return;
             }
 
@@ -212,14 +251,11 @@ export class MozoAtencion implements OnInit, OnDestroy {
               this.mesasSalon.push(mesaEncontrada);
             }
 
-            // ⚡ 2. HERENCIA SOLO SI LA MESA YA ESTABA EN CURSO: Si el pedido nuevo llega sin mozo, pero la mesa ya venía siendo atendida (y no se ha cobrado), le mantenemos el mozo
             if (!mozoEnBD && mozosAsignadosPrevios.has(numMesa)) {
               mozoEnBD = mozosAsignadosPrevios.get(numMesa)!;
             }
 
             if (mozoEnBD) {
-              // 🔔 TOAST PARA LOS DEMÁS MOZOS: Si la mesa estaba libre (no estaba en el mapa previo) 
-              // y el mozo que la tomó es un colega distinto a mí, lanzamos el aviso visual UNA SOLA VEZ.
               if (!mozosAsignadosPrevios.has(numMesa) && mozoEnBD !== this.nombreMozoActual && !mesaEncontrada.avisoAsignacionMostrado) {
                 mesaEncontrada.avisoAsignacionMostrado = true;
 
@@ -289,6 +325,42 @@ export class MozoAtencion implements OnInit, OnDestroy {
             });
           });
 
+          // 🔔 Pulso rojizo SOLO para el mozo asignado cuando el cliente agrega más ítems
+          this.mesasSalon.forEach(m => {
+            if (!m.mozoAsignado || m.itemsEnMesa.length === 0) {
+              m.tieneNuevoPedido = false;
+              this.conteoItemsPorMesa.delete(m.numeroMesa);
+              return;
+            }
+
+            const cantidadActualItems = m.itemsEnMesa.reduce((acc, it) => acc + (Number(it.cantidad) || 1), 0);
+            const cantidadAnterior = this.conteoItemsPorMesa.get(m.numeroMesa);
+
+            if (cantidadAnterior !== undefined && cantidadActualItems > cantidadAnterior) {
+              if (m.mozoAsignado === this.nombreMozoActual && this.inicializacionLista) {
+                m.tieneNuevoPedido = true;
+
+                const Toast = Swal.mixin({
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 3500,
+                  timerProgressBar: true,
+                  background: '#0f172a',
+                  color: '#fca5a5'
+                });
+                Toast.fire({
+                  icon: 'info',
+                  title: `🔔 Mesa N° ${m.numeroMesa}: el cliente agregó nuevos ítems`
+                });
+              }
+            }
+
+            this.conteoItemsPorMesa.set(m.numeroMesa, cantidadActualItems);
+          });
+
+          this.inicializacionLista = true;
+
           if (this.mesaModalAbierta) {
             const mesaActualizada = this.mesasSalon.find(m => m.numeroMesa === this.mesaModalAbierta?.numeroMesa);
             if (mesaActualizada) {
@@ -309,7 +381,6 @@ export class MozoAtencion implements OnInit, OnDestroy {
     try {
       if (!mesa.itemsEnMesa || mesa.itemsEnMesa.length === 0) return;
 
-      // ⚡ Actualizamos todos los documentos de pedidos asociados a esta mesa en Firestore
       const promesas = mesa.itemsEnMesa.map(item => {
         const pedidoRef = doc(this.firestore, 'pedidos', item.idDocumentoPedido);
         return updateDoc(pedidoRef, {
@@ -325,7 +396,6 @@ export class MozoAtencion implements OnInit, OnDestroy {
       this.filtroMozoTab = 'mis-mesas';
       this.cdr.detectChanges();
 
-      // ⚡ EL TOAST DE CONFIRMACIÓN PERSONAL PARA EL MOZO QUE TOMA LA MESA
       const Toast = Swal.mixin({
         toast: true,
         position: 'top-end',
@@ -391,7 +461,8 @@ export class MozoAtencion implements OnInit, OnDestroy {
 
       const tieneMozoAsignado = !!mesa.mozoAsignado;
       const esDeCocina = item.destino === 'cocina';
-      const mostrarBotonEntrega = tieneMozoAsignado && item.estado !== 'entregado' && (esDeCocina ? item.estado === 'listo' : true);
+      const esMiMesa = mesa.mozoAsignado === this.nombreMozoActual;
+      const mostrarBotonEntrega = esMiMesa && tieneMozoAsignado && item.estado !== 'entregado' && (esDeCocina ? item.estado === 'listo' : true);
 
       htmlLista += `
         <div style="background: #1e293b; padding: 8px 10px; border-radius: 6px; border-left: 4px solid ${colorBordeLateral}; color: #f8fafc; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px;">
@@ -452,6 +523,7 @@ export class MozoAtencion implements OnInit, OnDestroy {
   }
 
   verDetallePedido(mesa: MesaSalon): void {
+    mesa.tieneNuevoPedido = false;
     this.mesaModalAbierta = mesa;
 
     const headerHtml = `
@@ -623,36 +695,24 @@ export class MozoAtencion implements OnInit, OnDestroy {
     if (!confirm.isConfirmed) return;
 
     try {
-      const itemsCopia = JSON.parse(JSON.stringify(mesa.itemsEnMesa));
-      const totalCopia = mesa.totalMesa;
-
-      const promesas = mesa.itemsEnMesa.map(i => {
-        const ref = doc(this.firestore, 'pedidos', i.idDocumentoPedido);
+      const idsUnicosDocs = Array.from(new Set(mesa.itemsEnMesa.map(i => i.idDocumentoPedido)));
+      const promesas = idsUnicosDocs.map(docId => {
+        const ref = doc(this.firestore, 'pedidos', docId);
         return updateDoc(ref, { estado: 'pagado', solicitandoCobro: false });
       });
 
       await Promise.all(promesas);
-
-      const ahora = new Date();
-      const fechaCorta = ahora.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' });
-      const horaCorta = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const fechaHoraCompacta = `${fechaCorta} - ${horaCorta}`;
-
-      this.mesasCobradasHistorial.unshift({
-        numeroMesa: mesa.numeroMesa,
-        total: totalCopia,
-        items: itemsCopia,
-        fecha: fechaHoraCompacta
-      });
 
       mesa.mozoAsignado = null;
       mesa.estadoMesa = 'libre';
       mesa.itemsEnMesa = [];
       mesa.totalMesa = 0;
       mesa.solicitandoCobro = false;
-      mesa.avisoAsignacionMostrado = false; // Reiniciamos bandera para el próximo cliente
+      mesa.avisoAsignacionMostrado = false;
 
       this.mesasConAlertaCobroEmitida.delete(mesa.numeroMesa);
+      mesa.tieneNuevoPedido = false;
+      this.conteoItemsPorMesa.delete(mesa.numeroMesa);
       this.cdr.detectChanges();
 
       Swal.fire({
